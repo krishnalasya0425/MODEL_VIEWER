@@ -1,219 +1,192 @@
 //display models are
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import API, { setAuthToken } from "../utils/api";
-import { Bell, User, LogOut } from "lucide-react";
-export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [projectName, setProjectName] = useState("");
-  const [projectDesc, setProjectDesc] = useState("");
-  const [modelName, setModelName] = useState("");
-  const [modelFile, setModelFile] = useState(null);
-  const [subModels, setSubModels] = useState([{ name: "", description: "", file: null }]);
-  const [assignProjectId, setAssignProjectId] = useState("");
-  const [assignUserIds, setAssignUserIds] = useState([]);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/login");
-  };
+////working moderls in vr
+// import { useState, useEffect } from "react";
+// import { useNavigate } from "react-router-dom";
+// import API, { setAuthToken } from "../utils/api";
+// import { Bell, User, LogOut } from "lucide-react";
+// export default function AdminDashboard() {
+//   const navigate = useNavigate();
+//   const [users, setUsers] = useState([]);
+//   const [projects, setProjects] = useState([]);
+//   const [projectName, setProjectName] = useState("");
+//   const [projectDesc, setProjectDesc] = useState("");
+//   const [modelName, setModelName] = useState("");
+//   const [modelFile, setModelFile] = useState(null);
+//   const [subModels, setSubModels] = useState([{ name: "", description: "", file: null }]);
+//   const [assignProjectId, setAssignProjectId] = useState("");
+//   const [assignUserIds, setAssignUserIds] = useState([]);
+//   const [showProfileMenu, setShowProfileMenu] = useState(false);
+//   const handleLogout = () => {
+//     localStorage.clear();
+//     navigate("/login");
+//   };
 
-  // Load users and projects
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const usersRes = await API.get("http://localhost:5000/api/auth/users"); // create this API in backend
-        setUsers(usersRes.data.filter(u => u.role === "user"));
+//   // Load users and projects
+//   useEffect(() => {
+//     const fetchData = async () => {
+//       try {
+//         const usersRes = await API.get("http://localhost:5000/api/auth/users"); // create this API in backend
+//         setUsers(usersRes.data.filter(u => u.role === "user"));
 
-        const projectsRes = await API.get("http://localhost:5000/api/projects");
-        setProjects(projectsRes.data);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-    fetchData();
-  }, []);
+//         const projectsRes = await API.get("http://localhost:5000/api/projects");
+//         setProjects(projectsRes.data);
+//       } catch (err) {
+//         console.log(err);
+//       }
+//     };
+//     fetchData();
+//   }, []);
 
-  // Handle project creation
-//   const handleAddProject = async (e) => {
-//     e.preventDefault();
+
+
+
+// const handleAddProject = async (e) => {
+//   e.preventDefault();
+//   try {
+//     const formData = new FormData();
+//     formData.append("name", projectName);
+//     formData.append("description", projectDesc);
+//     formData.append("modelName", modelName);
+
+//     // Attach main model file
+//     if (modelFile) formData.append("modelFile", modelFile);
+
+//     // Prepare submodels metadata
+//     const subModelsData = subModels.map((s) => ({ 
+//       name: s.name, 
+//       description: s.description 
+//     }));
+//     formData.append("subModels", JSON.stringify(subModelsData));
+
+//     // Attach submodel files - ensure they're in correct order
+//     subModels.forEach((s) => {
+//       if (s.file) formData.append("subModelFiles", s.file);
+//     });
+
+//     // Send to backend
+//     await API.post("http://localhost:5000/api/projects/create", formData, {
+//       headers: { "Content-Type": "multipart/form-data" },
+//     });
+
+
+
+//     alert("Project created successfully");
+
+//     // Reset form
+//     setProjectName("");
+//     setProjectDesc("");
+//     setModelName("");
+//     setModelFile(null);
+//     setSubModels([{ name: "", description: "", file: null }]);
+
+//     // Refresh project list
+//     const projectsRes = await API.get("http://localhost:5000/api/projects");
+//     setProjects(projectsRes.data);
+//   } catch (err) {
+//     console.log(err);
+//     alert("Error creating project");
+//   }
+// };
+
+
+//   // Handle adding new submodel input
+//   const addSubModelInput = () => setSubModels([...subModels, { name: "", description: "", file: null }]);
+//   const handleSubModelChange = (index, field, value) => {
+//     const updated = [...subModels];
+//     updated[index][field] = value;
+//     setSubModels(updated);
+//   };
+
+//   // Assign project to users
+//   const handleAssignProject = async () => {
 //     try {
-//       const formData = new FormData();
-//       formData.append("name", projectName);
-//       formData.append("description", projectDesc);
-//       formData.append("modelName", modelName);
-//       if (modelFile) formData.append("modelFile", modelFile);
-
-//       const subModelsData = subModels.map((s, i) => {
-//         return { name: s.name, description: s.description };
-//       });
-//       formData.append("subModels", JSON.stringify(subModelsData));
-
-//       subModels.forEach((s) => {
-//         if (s.file) formData.append("subModelFiles", s.file);
-//       });
-
-//       await API.post("/projects/create", formData, { headers: { "Content-Type": "multipart/form-data" } });
-//       alert("Project created successfully");
-//       setProjectName(""); setProjectDesc(""); setModelName(""); setModelFile(null); setSubModels([{ name: "", description: "", file: null }]);
-//       const projectsRes = await API.get("/projects");
-// setProjects(projectsRes.data);
+//       if (!assignProjectId || assignUserIds.length === 0) return alert("Select project and users");
+//       await API.post(`http://localhost:5000/api/projects/${assignProjectId}/assign`, { userIds: assignUserIds });
+//       alert("Project assigned successfully");
 //     } catch (err) {
 //       console.log(err);
-//       alert("Error creating project");
+//       alert("Error assigning project");
 //     }
 //   };
 
-
-const handleAddProject = async (e) => {
-  e.preventDefault();
-  try {
-    const formData = new FormData();
-    formData.append("name", projectName);
-    formData.append("description", projectDesc);
-    formData.append("modelName", modelName);
-
-    // Attach main model file
-    if (modelFile) formData.append("modelFile", modelFile);
-
-    // Prepare submodels metadata
-    const subModelsData = subModels.map((s) => ({ 
-      name: s.name, 
-      description: s.description 
-    }));
-    formData.append("subModels", JSON.stringify(subModelsData));
-
-    // Attach submodel files - ensure they're in correct order
-    subModels.forEach((s) => {
-      if (s.file) formData.append("subModelFiles", s.file);
-    });
-
-    // Send to backend
-    await API.post("http://localhost:5000/api/projects/create", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    
-
-    alert("Project created successfully");
-
-    // Reset form
-    setProjectName("");
-    setProjectDesc("");
-    setModelName("");
-    setModelFile(null);
-    setSubModels([{ name: "", description: "", file: null }]);
-
-    // Refresh project list
-    const projectsRes = await API.get("http://localhost:5000/api/projects");
-    setProjects(projectsRes.data);
-  } catch (err) {
-    console.log(err);
-    alert("Error creating project");
-  }
-};
+//   return (
+//     <div className="p-8">
+//            <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+//         <div className="flex items-center justify-between px-6 py-3">
+//           <div className="flex items-center space-x-2">
+//             <span className="text-2xl font-bold text-blue-600">EdgeVR</span>
+//           </div>
 
 
-  // Handle adding new submodel input
-  const addSubModelInput = () => setSubModels([...subModels, { name: "", description: "", file: null }]);
-  const handleSubModelChange = (index, field, value) => {
-    const updated = [...subModels];
-    updated[index][field] = value;
-    setSubModels(updated);
-  };
 
-  // Assign project to users
-  const handleAssignProject = async () => {
-    try {
-      if (!assignProjectId || assignUserIds.length === 0) return alert("Select project and users");
-      await API.post(`http://localhost:5000/api/projects/${assignProjectId}/assign`, { userIds: assignUserIds });
-      alert("Project assigned successfully");
-    } catch (err) {
-      console.log(err);
-      alert("Error assigning project");
-    }
-  };
+//           <div className="flex items-center space-x-5 relative">
+//             <button className="text-gray-600 hover:text-blue-600">
+//               <Bell className="w-5 h-5" />
+//             </button>
 
-  return (
-    <div className="p-8">
-           <header className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="flex items-center justify-between px-6 py-3">
-          <div className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-blue-600">EdgeVR</span>
-          </div>
+//             <div className="relative">
+//               <button
+//                 onClick={() => setShowProfileMenu(!showProfileMenu)}
+//                 className="text-gray-600 hover:text-blue-600"
+//               >
+//                 <User className="w-5 h-5" />
+//               </button>
+//               {showProfileMenu && (
+//                 <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow-md">
+//                   <button
+//                     onClick={handleLogout}
+//                     className="flex items-center gap-2 w-full px-4 py-2 text-gray-700 hover:bg-red-500 hover:text-white rounded"
+//                   >
+//                     <LogOut className="w-4 h-4" /> Logout
+//                   </button>
+//                 </div>
+//               )}
+//             </div>
+//           </div>
+//         </div>
+//       </header>
 
-          
+//       <div className="mb-8">
+//         <h2 className="text-xl font-semibold mb-2">Create Project</h2>
+//         <form onSubmit={handleAddProject} className="flex flex-col gap-2 border p-4 rounded">
+//           <input type="text" placeholder="Project Name" value={projectName} onChange={(e)=>setProjectName(e.target.value)} className="p-2 border rounded" required/>
+//           <input type="text" placeholder="Project Description" value={projectDesc} onChange={(e)=>setProjectDesc(e.target.value)} className="p-2 border rounded" />
+//           <input type="text" placeholder="Main Model Name" value={modelName} onChange={(e)=>setModelName(e.target.value)} className="p-2 border rounded" />
+//           <input type="file" accept=".fbx,.glb" onChange={(e)=>setModelFile(e.target.files[0])} />
 
-          <div className="flex items-center space-x-5 relative">
-            <button className="text-gray-600 hover:text-blue-600">
-              <Bell className="w-5 h-5" />
-            </button>
+//           <div>
+//             <h3 className="font-semibold">Sub Models</h3>
+//             {subModels.map((s, i) => (
+//               <div key={i} className="flex gap-2 items-center mb-1">
+//                 <input type="text" placeholder="Name" value={s.name} onChange={(e)=>handleSubModelChange(i,"name",e.target.value)} className="p-2 border rounded" required/>
+//                 <input type="text" placeholder="Description" value={s.description} onChange={(e)=>handleSubModelChange(i,"description",e.target.value)} className="p-2 border rounded"/>
+//                 <input type="file" accept=".fbx,.glb" onChange={(e)=>handleSubModelChange(i,"file",e.target.files[0])} />
+//               </div>
+//             ))}
+//             <button type="button" onClick={addSubModelInput} className="bg-blue-400 text-white px-2 py-1 rounded">Add Submodel</button>
+//           </div>
+//           <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded mt-2">Create Project</button>
+//         </form>
+//       </div>
 
-            <div className="relative">
-              <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="text-gray-600 hover:text-blue-600"
-              >
-                <User className="w-5 h-5" />
-              </button>
-              {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-32 bg-white border rounded shadow-md">
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 w-full px-4 py-2 text-gray-700 hover:bg-red-500 hover:text-white rounded"
-                  >
-                    <LogOut className="w-4 h-4" /> Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+//       <div>
+//         <h2 className="text-xl font-semibold mb-2">Assign Project to Users</h2>
+//         <div className="flex flex-col gap-2 border p-4 rounded">
+//           <select value={assignProjectId} onChange={(e)=>setAssignProjectId(e.target.value)} className="p-2 border rounded">
+//             <option value="">Select Project</option>
+//             {projects.map(p=><option key={p._id} value={p._id}>{p.name}</option>)}
+//           </select>
 
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">Create Project</h2>
-        <form onSubmit={handleAddProject} className="flex flex-col gap-2 border p-4 rounded">
-          <input type="text" placeholder="Project Name" value={projectName} onChange={(e)=>setProjectName(e.target.value)} className="p-2 border rounded" required/>
-          <input type="text" placeholder="Project Description" value={projectDesc} onChange={(e)=>setProjectDesc(e.target.value)} className="p-2 border rounded" />
-          <input type="text" placeholder="Main Model Name" value={modelName} onChange={(e)=>setModelName(e.target.value)} className="p-2 border rounded" />
-          <input type="file" accept=".fbx,.glb" onChange={(e)=>setModelFile(e.target.files[0])} />
+//           <select multiple value={assignUserIds} onChange={(e)=>setAssignUserIds([...e.target.selectedOptions].map(o=>o.value))} className="p-2 border rounded">
+//             {users.map(u=><option key={u._id} value={u._id}>{u.email}</option>)}
+//           </select>
 
-          <div>
-            <h3 className="font-semibold">Sub Models</h3>
-            {subModels.map((s, i) => (
-              <div key={i} className="flex gap-2 items-center mb-1">
-                <input type="text" placeholder="Name" value={s.name} onChange={(e)=>handleSubModelChange(i,"name",e.target.value)} className="p-2 border rounded" required/>
-                <input type="text" placeholder="Description" value={s.description} onChange={(e)=>handleSubModelChange(i,"description",e.target.value)} className="p-2 border rounded"/>
-                <input type="file" accept=".fbx,.glb" onChange={(e)=>handleSubModelChange(i,"file",e.target.files[0])} />
-              </div>
-            ))}
-            <button type="button" onClick={addSubModelInput} className="bg-blue-400 text-white px-2 py-1 rounded">Add Submodel</button>
-          </div>
-          <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded mt-2">Create Project</button>
-        </form>
-      </div>
-
-      <div>
-        <h2 className="text-xl font-semibold mb-2">Assign Project to Users</h2>
-        <div className="flex flex-col gap-2 border p-4 rounded">
-          <select value={assignProjectId} onChange={(e)=>setAssignProjectId(e.target.value)} className="p-2 border rounded">
-            <option value="">Select Project</option>
-            {projects.map(p=><option key={p._id} value={p._id}>{p.name}</option>)}
-          </select>
-
-          <select multiple value={assignUserIds} onChange={(e)=>setAssignUserIds([...e.target.selectedOptions].map(o=>o.value))} className="p-2 border rounded">
-            {users.map(u=><option key={u._id} value={u._id}>{u.email}</option>)}
-          </select>
-
-          <button onClick={handleAssignProject} className="bg-blue-500 text-white px-4 py-2 rounded">Assign Project</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+//           <button onClick={handleAssignProject} className="bg-blue-500 text-white px-4 py-2 rounded">Assign Project</button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
 //styles with tabs (errors)
 // import { useState, useEffect } from "react";
 // import { useNavigate } from "react-router-dom";
@@ -563,3 +536,320 @@ const handleAddProject = async (e) => {
 //     </div>
 //   );
 // }
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import API from "../utils/api";
+import { Bell, User, LogOut, Users, FolderPlus } from "lucide-react";
+import UserProjectsFetcher from "../components/UserProjectsFetcher";
+
+export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const [users, setUsers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [projectName, setProjectName] = useState("");
+  const [projectDesc, setProjectDesc] = useState("");
+  const [modelName, setModelName] = useState("");
+  const [modelFile, setModelFile] = useState(null);
+  const [subModels, setSubModels] = useState([{ name: "", description: "", file: null }]);
+  const [assignProjectId, setAssignProjectId] = useState("");
+  const [assignUserIds, setAssignUserIds] = useState([]);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState("createProject"); // sidebar tab
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const usersRes = await API.get("http://localhost:5000/api/auth/users");
+        setUsers(usersRes.data.filter((u) => u.role === "user"));
+
+        const projectsRes = await API.get("http://localhost:5000/api/projects");
+        setProjects(projectsRes.data);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const handleAddProject = async (e) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append("name", projectName);
+      formData.append("description", projectDesc);
+      formData.append("modelName", modelName);
+      if (modelFile) formData.append("modelFile", modelFile);
+
+      const subModelsData = subModels.map((s) => ({
+        name: s.name,
+        description: s.description,
+      }));
+      formData.append("subModels", JSON.stringify(subModelsData));
+
+      subModels.forEach((s) => {
+        if (s.file) formData.append("subModelFiles", s.file);
+      });
+
+      await API.post("http://localhost:5000/api/projects/create", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      alert("Project created successfully");
+      setProjectName("");
+      setProjectDesc("");
+      setModelName("");
+      setModelFile(null);
+      setSubModels([{ name: "", description: "", file: null }]);
+
+      const projectsRes = await API.get("http://localhost:5000/api/projects");
+      setProjects(projectsRes.data);
+    } catch (err) {
+      console.log(err);
+      alert("Error creating project");
+    }
+  };
+
+  const addSubModelInput = () =>
+    setSubModels([...subModels, { name: "", description: "", file: null }]);
+
+  const handleSubModelChange = (index, field, value) => {
+    const updated = [...subModels];
+    updated[index][field] = value;
+    setSubModels(updated);
+  };
+
+  const handleAssignProject = async () => {
+    try {
+      if (!assignProjectId || assignUserIds.length === 0)
+        return alert("Select project and users");
+      await API.post(
+        `http://localhost:5000/api/projects/${assignProjectId}/assign`,
+        { userIds: assignUserIds }
+      );
+      alert("Project assigned successfully");
+    } catch (err) {
+      console.log(err);
+      alert("Error assigning project");
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen bg-[#0B1120] text-white">
+      {/* Sidebar */}
+      <aside className="w-64 bg-[#111827] flex flex-col p-4">
+        <h1 className="text-2xl font-bold text-indigo-500 mb-6">EdgeVR</h1>
+
+        <button
+          onClick={() => setActiveTab("createProject")}
+          className={`flex items-center gap-2 px-3 py-2 rounded-md transition ${activeTab === "createProject"
+              ? "bg-indigo-600 text-white"
+              : "text-gray-300 hover:bg-[#1E293B]"
+            }`}
+        >
+          <FolderPlus className="w-5 h-5" /> Create Project
+        </button>
+
+        <button
+          onClick={() => setActiveTab("users")}
+          className={`flex items-center gap-2 px-3 py-2 rounded-md mt-2 transition ${activeTab === "users"
+              ? "bg-indigo-600 text-white"
+              : "text-gray-300 hover:bg-[#1E293B]"
+            }`}
+        >
+          <Users className="w-5 h-5" /> All Users
+        </button>
+
+        <div className="mt-auto pt-6 border-t border-gray-700">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-gray-300 hover:text-red-500 transition"
+          >
+            <LogOut className="w-4 h-4" /> Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 p-8 overflow-y-auto">
+        {/* Navbar (border removed) */}
+
+
+        {/* Tab Content */}
+        {activeTab === "createProject" && (
+          <>
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold mb-2 text-indigo-400">
+                Create Project
+              </h2>
+              <form
+                onSubmit={handleAddProject}
+                className="flex flex-col gap-2 border border-gray-700 bg-[#1E293B] p-4 rounded-lg"
+              >
+                <input
+                  type="text"
+                  placeholder="Project Name"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  className="p-2 bg-gray-800 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Project Description"
+                  value={projectDesc}
+                  onChange={(e) => setProjectDesc(e.target.value)}
+                  className="p-2 bg-gray-800 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Main Model Name"
+                  value={modelName}
+                  onChange={(e) => setModelName(e.target.value)}
+                  className="p-2 bg-gray-800 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <input
+                  type="file"
+                  accept=".fbx,.glb"
+                  onChange={(e) => setModelFile(e.target.files[0])}
+                  className="text-gray-300"
+                />
+
+                <div>
+                  <h3 className="font-semibold text-indigo-400 mb-1">Sub Models</h3>
+                  {subModels.map((s, i) => (
+                    <div key={i} className="flex gap-2 items-center mb-1">
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        value={s.name}
+                        onChange={(e) =>
+                          handleSubModelChange(i, "name", e.target.value)
+                        }
+                        className="p-2 bg-gray-800 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Description"
+                        value={s.description}
+                        onChange={(e) =>
+                          handleSubModelChange(i, "description", e.target.value)
+                        }
+                        className="p-2 bg-gray-800 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <input
+                        type="file"
+                        accept=".fbx,.glb"
+                        onChange={(e) =>
+                          handleSubModelChange(i, "file", e.target.files[0])
+                        }
+                        className="text-gray-300"
+                      />
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addSubModelInput}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded transition-all duration-200"
+                  >
+                    Add Submodel
+                  </button>
+                </div>
+                <button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-all duration-200"
+                >
+                  Create Project
+                </button>
+              </form>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold mb-2 text-indigo-400">
+                Assign Project to Users
+              </h2>
+              <div className="flex flex-col gap-2 border border-gray-700 bg-[#1E293B] p-4 rounded-lg">
+                <select
+                  value={assignProjectId}
+                  onChange={(e) => setAssignProjectId(e.target.value)}
+                  className="p-2 bg-gray-800 text-white border border-gray-600 rounded"
+                >
+                  <option value="">Select Project</option>
+                  {projects.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  multiple
+                  value={assignUserIds}
+                  onChange={(e) =>
+                    setAssignUserIds([...e.target.selectedOptions].map((o) => o.value))
+                  }
+                  className="p-2 bg-gray-800 text-white border border-gray-600 rounded"
+                >
+                  {users.map((u) => (
+                    <option key={u._id} value={u._id}>
+                      {u.email}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={handleAssignProject}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-all duration-200"
+                >
+                  Assign Project
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+{activeTab === "users" && (
+  <div>
+    <h2 className="text-xl font-semibold mb-4 text-indigo-400">All Users</h2>
+    <div className="border border-gray-700 bg-[#1E293B] p-4 rounded-lg overflow-x-auto">
+      {users.length === 0 ? (
+        <p className="text-gray-400">No users found.</p>
+      ) : (
+        <table className="min-w-full text-sm text-left text-gray-300 border border-gray-700 rounded-lg">
+          <thead className="bg-gray-800 text-gray-400 uppercase text-xs border-b border-gray-700">
+            <tr>
+              <th className="px-4 py-2 border-r border-gray-700">S.No</th>
+              <th className="px-4 py-2 border-r border-gray-700">Email</th>
+              <th className="px-4 py-2">Assigned Project</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((user, index) => (
+              <tr
+                key={user._id}
+                className="border-b border-gray-700 hover:bg-gray-800 transition"
+              >
+                <td className="px-4 py-2 border-r border-gray-700">{index + 1}</td>
+                <td className="px-4 py-2 border-r border-gray-700">{user.email}</td>
+                <td className="px-4 py-2 text-gray-400">
+  <UserProjectsFetcher userId={user._id} />
+</td>
+
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </div>
+)}
+
+      </div>
+    </div>
+  );
+}
