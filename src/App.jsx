@@ -53,7 +53,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import VRViewer from "./pages/VRViewer";
 import LandingPage from "./pages/LandingPage"; // 👈 new
-
+import { ThemeProvider } from "./context/ThemeContext";
 const PrivateRoute = ({ children, role }) => {
   const token = localStorage.getItem("token");
   const userRole = localStorage.getItem("role");
@@ -66,6 +66,7 @@ const PrivateRoute = ({ children, role }) => {
 
 function App() {
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <Routes>
         {/* 👇 Landing page is now the home route */}
@@ -93,6 +94,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

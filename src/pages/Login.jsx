@@ -65,11 +65,13 @@
 import { useState } from "react";
 import API from "../utils/api";
 import { useNavigate, Link } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext"; // ✅ import theme hook
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const { darkMode } = useTheme(); // ✅ get theme
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -85,12 +87,24 @@ export default function Login() {
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-[#0B1120]">
+    <div
+      className={`flex justify-center items-center h-screen transition-all duration-500 ${
+        darkMode ? "bg-[#0B1120]" : "bg-gray-100"
+      }`}
+    >
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-4 p-8 rounded-2xl shadow-lg bg-[#111827] w-80 border border-gray-700"
+        className={`flex flex-col gap-4 p-8 rounded-2xl shadow-lg w-80 border transition-all duration-300 ${
+          darkMode
+            ? "bg-[#111827] border-gray-700"
+            : "bg-white border-gray-300"
+        }`}
       >
-        <h2 className="text-3xl font-semibold text-center text-white">
+        <h2
+          className={`text-3xl font-semibold text-center ${
+            darkMode ? "text-white" : "text-gray-900"
+          }`}
+        >
           Login
         </h2>
         <input
@@ -98,7 +112,11 @@ export default function Login() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="p-2 bg-gray-800 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className={`p-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+            darkMode
+              ? "bg-gray-800 text-white border-gray-600"
+              : "bg-gray-100 text-gray-900 border-gray-300"
+          }`}
           required
         />
         <input
@@ -106,7 +124,11 @@ export default function Login() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="p-2 bg-gray-800 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className={`p-2 border rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+            darkMode
+              ? "bg-gray-800 text-white border-gray-600"
+              : "bg-gray-100 text-gray-900 border-gray-300"
+          }`}
           required
         />
         <button
@@ -115,11 +137,15 @@ export default function Login() {
         >
           Login
         </button>
-        <p className="text-center text-sm text-gray-300">
+        <p
+          className={`text-center text-sm ${
+            darkMode ? "text-gray-300" : "text-gray-600"
+          }`}
+        >
           Don’t have an account?{" "}
           <Link
             to="/register"
-            className="text-indigo-400 hover:text-indigo-300 underline"
+            className="text-indigo-500 hover:text-indigo-400 underline"
           >
             Register
           </Link>
