@@ -1342,11 +1342,34 @@ import { useNavigate } from "react-router-dom";
 import API from "../utils/api";
 import "@google/model-viewer";
 import FBXViewer from "../components/FBXViewer";
-import { Bell, User, LogOut, ZoomIn, ZoomOut, Eye, View, Maximize } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
+
+import {
+  Bell,
+  User,
+  LogOut,
+  Users,
+  FolderPlus,
+  Edit,
+  Trash,
+  Info,
+  Plus,
+  X,
+  Sun,
+  Moon,
+  ZoomIn,
+  ZoomOut,
+  Eye,
+  Maximize,
+  View
+} from "lucide-react";
+
+
 
 function RightDescriptionPanel({ selectedProject }) {
   const [collapsed, setCollapsed] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
   if (!selectedProject) return null;
 
   const desc = selectedProject.description || "No description available.";
@@ -1387,12 +1410,15 @@ function RightDescriptionPanel({ selectedProject }) {
 
 export default function UserDashboard() {
   const navigate = useNavigate();
+  const { darkMode, toggleDarkMode } = useTheme();
+
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [vrPopup, setVrPopup] = useState({ open: false, fileId: null });
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  
 
 
   useEffect(() => {
@@ -1536,9 +1562,21 @@ export default function UserDashboard() {
 
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-black text-white">
+    <div
+      className={`flex min-h-screen transition-colors duration-500 ${darkMode
+        ? "bg-gradient-to-br from-blue-900 via-purple-900 to-black text-white"
+        : "bg-gradient-to-br from-gray-100 via-gray-200 to-white text-gray-900"
+        }`}
+    >
 
-      <aside className="w-64 bg-black/40 backdrop-blur-lg border-r border-purple-800 flex flex-col">
+
+      <aside
+        className={`w-64 backdrop-blur-lg border-r flex flex-col transition-colors duration-500 ${darkMode
+          ? "bg-black/40 border-purple-800"
+          : "bg-white border-gray-300 text-gray-800"
+          }`}
+      >
+
         <div className="p-4 text-center border-b border-purple-800 text-purple-400 font-bold text-xl">
           My Projects
         </div>
@@ -1558,18 +1596,42 @@ export default function UserDashboard() {
             <p className="p-4 text-gray-400">No projects found.</p>
           )}
         </div>
-        <div className="p-3 border-t border-purple-800 flex justify-between items-center">
-          <Bell className="w-5 h-5 text-purple-400" />
-          <button onClick={() => setShowProfileMenu(!showProfileMenu)}>
-            <User className="w-5 h-5 text-purple-400" />
+        <div className="mt-auto pt-6 border-t border-gray-700 relative">
+          <button
+            onClick={() => setShowProfileMenu((prev) => !prev)}
+            className="flex items-center gap-2 text-gray-300 hover:text-indigo-400 transition"
+          >
+            <User className="w-5 h-5" />
+            <span>Profile</span>
           </button>
+
           {showProfileMenu && (
-            <div className="absolute bottom-16 right-4 bg-black/90 border border-purple-700 rounded-lg shadow-lg">
+            <div
+              className={`absolute left-0 bottom-14 w-56 rounded-lg shadow-lg p-3 z-50 ${darkMode ? "bg-[#1E293B]" : "bg-white border border-gray-300"
+                }`}
+            >
+              <p
+                className={`text-sm mb-3 ${darkMode ? "text-gray-300" : "text-gray-700"
+                  }`}
+              >
+                <strong>My Details:</strong> <br />
+                <span className="text-xs">admin@edgevr.com</span>
+              </p>
+
+              <button
+                onClick={toggleDarkMode}
+                className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm hover:bg-indigo-600 hover:text-white transition"
+              >
+                <span>Theme Settings</span>
+                {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 text-gray-300 hover:bg-purple-700 hover:text-white rounded"
+                className="flex items-center justify-between w-full px-3 py-2 mt-2 rounded-md text-sm hover:bg-red-600 hover:text-white transition"
               >
-                <LogOut className="w-4 h-4" /> Logout
+                <span>Logout</span>
+                <LogOut size={16} />
               </button>
             </div>
           )}
@@ -1632,49 +1694,49 @@ export default function UserDashboard() {
             <div className="flex-1 relative bg-black overflow-hidden rounded-l-2xl">
               {selectedModel.url.endsWith(".fbx") ? (
                 <FBXViewer fileUrl={selectedModel.url} zoom={zoom} />
-
               ) : (
+                <>
+                  <div
+                    id="loading-overlay"
+                    className="absolute inset-0 flex items-center justify-center bg-black text-purple-400 text-lg font-semibold"
+                  >
+                    Loading 3D model...
+                  </div>
 
+                  <model-viewer
+                    id="model-viewer-3d"
+                    src={selectedModel.url}
+                    alt="3D Model"
+                    camera-controls
+                    auto-rotate
+                    xr-environment
+                    ar
+                    camera-target="0m 0m 0m"
+                    interaction-prompt="none"
+                    onLoad={(e) => {
+                      const viewer = e.target;
+                      const overlay = document.getElementById("loading-overlay");
+                      if (overlay) overlay.style.display = "none";
 
+                      const scene = viewer.model?.scene;
+                      if (scene) {
+                        scene.scale.set(150, 150, 150);
+                      }
 
-                <model-viewer
-                  id="model-viewer-3d"
-                  src={selectedModel.url}
-                  alt="3D Model"
-                  camera-controls
-                  auto-rotate
-                  xr-environment
-                  ar
-                  camera-target="0m 0.m 0m"
-                  interaction-prompt="none"
-                  onLoad={(e) => {
-                    const viewer = e.target;
-
-                    const scene = viewer.model?.scene;
-                    if (scene) {
-                      scene.scale.set(150, 150, 150);
-                      console.log("Model loaded and scaled.");
-
-                      console.log("✅ Scaled model by 50× for visibility");
-                    }
-                    +
-                      viewer.setAttribute("camera-orbit", "0deg 75deg 20m");
-                  }}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    backgroundColor: "transparent",
-                    transition: "camera-orbit 0.3s ease-out",
-                  }}
-                ></model-viewer>
-
-
-
-
-
-
-
+                      // ✅ Center model properly & keep distance
+                      viewer.setAttribute("camera-orbit", "0deg 75deg 25m");
+                      viewer.setAttribute("camera-target", "0m 1.5m 0m");
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      backgroundColor: "transparent",
+                      transition: "camera-orbit 0.3s ease-out",
+                    }}
+                  ></model-viewer>
+                </>
               )}
+
 
               <div className="absolute bottom-5 right-5 flex gap-3 z-50">
                 <button
@@ -1721,17 +1783,84 @@ export default function UserDashboard() {
               </div>
             </div>
 
-            <RightDescriptionPanel selectedProject={selectedProject} />
+            <RightDescriptionPanel
+              selectedProject={{
+                name: selectedModel.name || selectedProject.name,
+                description:
+                  selectedProject.subModels?.find(
+                    (s) => s.fileId === selectedModel.url.split("/").pop()
+                  )?.description ||
+                  (selectedProject.modelFileId?.toString() ===
+                    selectedModel.url.split("/").pop()
+                    ? selectedProject.description
+                    : "No description available."),
+              }}
+            />
+
 
             {vrPopup.open && (
               <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-[60]">
                 <div className="bg-black border border-purple-700 rounded-xl shadow-lg p-6 max-w-md w-full relative text-white">
                   <button
-                    onClick={() => setVrPopup({ open: false, fileId: null })}
+                    onClick={() => {
+                      // Close the popup
+                      setVrPopup({ open: false, fileId: null });
+
+                      // Show restoring overlay
+                      const overlay = document.createElement("div");
+                      overlay.id = "restore-overlay";
+                      overlay.innerText = "Restoring viewer...";
+                      overlay.style.position = "absolute";
+                      overlay.style.top = "50%";
+                      overlay.style.left = "50%";
+                      overlay.style.transform = "translate(-50%, -50%)";
+                      overlay.style.background = "rgba(0, 0, 0, 0.6)";
+                      overlay.style.color = "#fff";
+                      overlay.style.padding = "10px 20px";
+                      overlay.style.borderRadius = "10px";
+                      overlay.style.fontSize = "16px";
+                      overlay.style.zIndex = "9999";
+                      document.body.appendChild(overlay);
+
+                      // Reset <model-viewer> after closing VR
+                      setTimeout(() => {
+                        const oldViewer = document.getElementById("model-viewer-3d");
+                        if (oldViewer) {
+                          const parent = oldViewer.parentElement;
+                          const src = oldViewer.getAttribute("src");
+
+                          // remove old viewer
+                          oldViewer.remove();
+
+                          // create new one
+                          const newViewer = document.createElement("model-viewer");
+                          newViewer.id = "model-viewer-3d";
+                          newViewer.setAttribute("src", src);
+                          newViewer.setAttribute("alt", "3D Model");
+                          newViewer.setAttribute("camera-controls", "");
+                          newViewer.setAttribute("auto-rotate", "");
+                          newViewer.setAttribute("xr-environment", "");
+                          newViewer.setAttribute("ar", "");
+                          newViewer.style.width = "100%";
+                          newViewer.style.height = "100%";
+                          newViewer.style.backgroundColor = "transparent";
+
+                          parent.appendChild(newViewer);
+                        }
+
+                        // Hide overlay
+                        setTimeout(() => {
+                          const overlayEl = document.getElementById("restore-overlay");
+                          if (overlayEl) overlayEl.remove();
+                        }, 1000);
+                      }, 800);
+                    }}
                     className="absolute top-2 right-3 text-gray-400 hover:text-red-500 text-xl"
                   >
                     ✕
                   </button>
+
+
                   <h2 className="text-xl font-bold mb-4 text-center text-purple-300">
                     View This Model in Virtual Reality
                   </h2>
