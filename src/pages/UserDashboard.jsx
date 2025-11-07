@@ -1411,15 +1411,12 @@ function RightDescriptionPanel({ selectedProject }) {
 export default function UserDashboard() {
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useTheme();
-
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedModel, setSelectedModel] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [vrPopup, setVrPopup] = useState({ open: false, fileId: null });
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  
-
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -1455,7 +1452,6 @@ export default function UserDashboard() {
         const radiusStr = orbit.radius?.toString() || "2.5m";
         const match = radiusStr.match(/([\d.]+)/);
         const radius = match ? parseFloat(match[1]) : 2.5;
-
         const azimuth = orbit.theta?.deg ?? 0;
         const elevation = orbit.phi?.deg ?? 75;
 
@@ -1488,11 +1484,6 @@ export default function UserDashboard() {
     });
   };
 
-
-
-
-
-
   const handleVR = (fileId) => {
     setVrPopup({ open: true, fileId });
   };
@@ -1521,8 +1512,6 @@ export default function UserDashboard() {
           const supported = await navigator.xr.isSessionSupported("immersive-vr");
           if (supported) {
             xrStatus.textContent = "✅ Meta Quest 3 detected. Launching Unity VR...";
-
-
             fetch("http://localhost:5000/api/system/launch-unity-vr", { method: "POST" })
               .then((r) => r.json())
               .then((data) => {
@@ -1803,10 +1792,8 @@ export default function UserDashboard() {
                 <div className="bg-black border border-purple-700 rounded-xl shadow-lg p-6 max-w-md w-full relative text-white">
                   <button
                     onClick={() => {
-                      // Close the popup
-                      setVrPopup({ open: false, fileId: null });
 
-                      // Show restoring overlay
+                      setVrPopup({ open: false, fileId: null });
                       const overlay = document.createElement("div");
                       overlay.id = "restore-overlay";
                       overlay.innerText = "Restoring viewer...";
@@ -1821,18 +1808,12 @@ export default function UserDashboard() {
                       overlay.style.fontSize = "16px";
                       overlay.style.zIndex = "9999";
                       document.body.appendChild(overlay);
-
-                      // Reset <model-viewer> after closing VR
                       setTimeout(() => {
                         const oldViewer = document.getElementById("model-viewer-3d");
                         if (oldViewer) {
                           const parent = oldViewer.parentElement;
                           const src = oldViewer.getAttribute("src");
-
-                          // remove old viewer
                           oldViewer.remove();
-
-                          // create new one
                           const newViewer = document.createElement("model-viewer");
                           newViewer.id = "model-viewer-3d";
                           newViewer.setAttribute("src", src);
@@ -1844,11 +1825,8 @@ export default function UserDashboard() {
                           newViewer.style.width = "100%";
                           newViewer.style.height = "100%";
                           newViewer.style.backgroundColor = "transparent";
-
                           parent.appendChild(newViewer);
                         }
-
-                        // Hide overlay
                         setTimeout(() => {
                           const overlayEl = document.getElementById("restore-overlay");
                           if (overlayEl) overlayEl.remove();
@@ -1859,8 +1837,6 @@ export default function UserDashboard() {
                   >
                     ✕
                   </button>
-
-
                   <h2 className="text-xl font-bold mb-4 text-center text-purple-300">
                     View This Model in Virtual Reality
                   </h2>
