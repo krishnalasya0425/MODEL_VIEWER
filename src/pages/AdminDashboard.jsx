@@ -569,12 +569,26 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("createProject");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [viewImage, setViewImage] = useState(null);
 
   const [assignedUser, setAssignedUser] = useState("");
 
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [helpRequests, setHelpRequests] = useState([]);
+  const [expandedHelpId, setExpandedHelpId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Calculate current help requests for this page
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+  const currentHelpRequests = helpRequests.slice(indexOfFirst, indexOfLast);
+
+  // Total pages
+  const totalPages = Math.ceil(helpRequests.length / itemsPerPage);
 
   const { darkMode, toggleDarkMode } = useTheme();
 
@@ -593,12 +607,22 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchHelpRequests = async () => {
+    try {
+      const res = await API.get("http://localhost:5000/api/help/all");
+      setHelpRequests(res.data);
+    } catch (err) {
+      console.error("Error fetching help requests:", err);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const usersRes = await API.get("http://localhost:5000/api/auth/users");
         setUsers(usersRes.data.filter((u) => u.role === "user"));
-        await fetchProjects(); 
+        await fetchProjects();
+        await fetchHelpRequests();
       } catch (err) {
         console.log(err);
       }
@@ -627,10 +651,14 @@ export default function AdminDashboard() {
         if (s.file) formData.append("subModelFiles", s.file);
       });
 
-      await API.post("http://localhost:5000/api/projects/create", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const token =localStorage.getItem("token");
 
+      await API.post("http://localhost:5000/api/projects/create", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "Authorization": `Bearer ${token}`  // ✅ Include token
+        },
+      });
       alert("Project created successfully");
       setShowCreateModal(false);
       setProjectName("");
@@ -656,7 +684,7 @@ export default function AdminDashboard() {
     setSubModels(updated);
   };
 
- 
+
   const handleDeleteProject = async (id) => {
     if (!window.confirm("Are you sure you want to delete this project?")) return;
     try {
@@ -680,6 +708,26 @@ export default function AdminDashboard() {
       alert("Error loading project info");
     }
   };
+
+  const handleResolveHelp = async (id) => {
+    if (!window.confirm("Mark this help request as resolved?")) return;
+    try {
+      const res = await API.put(`/help/resolve/${id}`);
+
+      // Remove resolved request from state
+      setHelpRequests(helpRequests.filter((h) => h._id !== id));
+
+      // Add the new notification to state
+      setNotifications((prev) => [res.data.notification, ...prev]);
+
+      toast.success("Help request resolved successfully!");
+    } catch (err) {
+      console.error("Error resolving help:", err);
+      toast.error("Failed to resolve help request");
+    }
+  };
+
+
 
 
   const handleShowUpdate = (project) => {
@@ -712,7 +760,7 @@ export default function AdminDashboard() {
 
     subModels.forEach((s) => {
       if (s.file) {
-        formData.append("subModelFiles", s.file); 
+        formData.append("subModelFiles", s.file);
       }
     });
 
@@ -768,14 +816,27 @@ export default function AdminDashboard() {
           <Users className="w-5 h-5" /> All Users
         </button>
 
+        <button
+          onClick={() => setActiveTab("help")}
+          className={`flex items-center gap-2 px-3 py-2 rounded-md mt-2 transition ${activeTab === "help"
+            ? "bg-indigo-600 text-white"
+            : darkMode
+              ? "text-gray-300 hover:bg-[#1E293B]"
+              : "text-gray-700 hover:bg-gray-200"
+            }`}
+        >
+          <Bell className="w-5 h-5" /> Help Requests
+        </button>
+
+
 
         <div className="mt-auto pt-6 border-t border-gray-700 relative">
           <button
             onClick={() => setShowProfileMenu((prev) => !prev)}
             className="flex items-center gap-2 text-gray-300 hover:text-indigo-400 transition"
           >
-            <User className="w-5 h-5" />
-            <span>Profile</span>
+            <User className="w-5 h-5  ml-4 text-black" />
+            <span className="text-black">Profile</span>
           </button>
 
           {showProfileMenu && (
@@ -788,7 +849,7 @@ export default function AdminDashboard() {
                   }`}
               >
                 <strong>My Details:</strong> <br />
-                <span className="text-xs">admin@edgevr.com</span>
+                 <span className="text-xs">{localStorage.getItem("email") || "admin@edgevr.com"}</span>
               </p>
 
               <button
@@ -935,6 +996,210 @@ export default function AdminDashboard() {
         )}
       </div>
 
+
+      {activeTab === "help" && (
+        <div
+          className={`flex w-full min-h-screen transition-colors duration-300 ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
+            }`}
+        >
+          {/* === Middle Panel (Help Requests List) === */}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-y-auto ${expandedHelpId ? "w-[400px]" : "w-full"
+              } ${darkMode ? "bg-gray-950" : "bg-white"} border-r ${darkMode ? "border-gray-800" : "border-gray-200"
+              }`}
+          >
+            <div className="p-4 border-b border-gray-700 sticky top-0 bg-inherit z-10">
+              <h2 className="text-lg font-semibold text-indigo-500 text-center">
+                Help Requests
+              </h2>
+            </div>
+
+            {currentHelpRequests.length === 0 ? (
+              <p className="text-gray-400 text-center mt-10">
+                No help requests found.
+              </p>
+            ) : (
+              <ul className="divide-y divide-gray-700">
+                {currentHelpRequests.map((req) => (
+                  <li
+                    key={req._id}
+                    onClick={() => setExpandedHelpId(req._id)}
+                    className={`cursor-pointer p-4 hover:bg-indigo-900/20 transition ${expandedHelpId === req._id
+                      ? "bg-indigo-800/30 border-l-4 border-indigo-500"
+                      : ""
+                      }`}
+                  >
+                    <div className="flex justify-between">
+                      <p className="font-medium">{req.from}</p>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded ${req.status === "open"
+                          ? "bg-yellow-600 text-white"
+                          : "bg-green-600 text-white"
+                          }`}
+                      >
+                        {req.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-300 truncate">
+                      {req.subject || "No subject"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(req.createdAt).toLocaleString()}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center py-4 space-x-2 border-t border-gray-700">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <span className="text-sm text-gray-400">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 rounded bg-gray-700 text-white disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* === Right Panel (Help Request Details) === */}
+          {expandedHelpId && (
+            <div
+              className={`flex-1 flex flex-col overflow-y-auto h-screen p-6 transition-all duration-300 ${darkMode ? "bg-gray-900" : "bg-gray-50"
+                }`}
+            >
+              {(() => {
+                const req = currentHelpRequests.find((r) => r._id === expandedHelpId);
+                if (!req) return null;
+
+                return (
+                  <div className="flex flex-col h-full">
+                    <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-4 sticky top-0 bg-inherit z-10">
+                      <h3 className="text-lg font-semibold text-indigo-400">
+                        Help Request Details
+                      </h3>
+                      <button onClick={() => setExpandedHelpId(null)}>
+                        <X size={20} className="text-gray-400 hover:text-red-500" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 text-sm overflow-y-auto flex-1 pr-2">
+                      <p>
+                        <strong>From:</strong> {req.from}
+                      </p>
+                      <p>
+                        <strong>To:</strong> {req.to}
+                      </p>
+                      <p>
+                        <strong>Subject:</strong> {req.subject || "No subject"}
+                      </p>
+                      <p>
+                        <strong>Status:</strong> {req.status}
+                      </p>
+                      <div>
+                        <strong>Message:</strong>
+                        <p className="mt-1 text-gray-300">
+                          {req.message || "No message"}
+                        </p>
+                      </div>
+
+                      {/* Attachments */}
+                      {req.attachments?.length > 0 && (
+                        <div>
+                          <strong>Attachments:</strong>
+                          <div className="grid grid-cols-3 gap-3 mt-4">
+                            {req.attachments.map((att, i) => {
+                              const fileUrl = `http://localhost:5000/api/help/file/${att.fileId}`;
+                              console.log("Loading attachment:", fileUrl);
+                              const isImage = att.contentType?.startsWith("image/");
+                              const isPDF = att.contentType === "application/pdf";
+
+                              return (
+                                <div key={i} className="flex flex-col items-center">
+                                  {isImage ? (
+                                    <img
+                                      src={fileUrl}
+                                      alt={att.filename}
+                                      className="w-64 h-64 object-cover rounded cursor-pointer hover:opacity-90 transition"
+                                      onClick={() => setViewImage(fileUrl)}
+                                    />
+                                  ) : isPDF ? (
+                                    <iframe
+                                      src={fileUrl}
+                                      className="w-full h-[70vh] border rounded"
+                                      title={att.filename}
+                                    />
+                                  ) : (
+                                    <a
+                                      href={fileUrl}
+                                      download={att.filename}
+                                      className="text-blue-400 underline text-sm"
+                                    >
+                                      Download {att.filename}
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer Buttons */}
+                    <div className="pt-4 border-t border-gray-700 flex justify-end space-x-2 mt-6">
+                      {req.status === "open" && (
+                        <button
+                          onClick={() => handleResolveHelp(req._id)}
+                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                        >
+                          Mark Resolved
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setExpandedHelpId(null)}
+                        className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-1 rounded text-sm"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* === Fullscreen Image Viewer === */}
+          {viewImage && (
+            <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+              <button
+                className="absolute top-4 right-6 text-white text-lg"
+                onClick={() => setViewImage(null)}
+              >
+                ✕ Close
+              </button>
+              <img
+                src={viewImage}
+                alt="Attachment"
+                className="max-w-[90vw] max-h-[90vh] object-contain rounded"
+              />
+            </div>
+          )}
+        </div>
+      )}
       {/* ✅ Create Project Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1044,23 +1309,7 @@ export default function AdminDashboard() {
                 + Add Submodel
               </button>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Assign User
-                </label>
-                <select
-                  value={assignedUser}
-                  onChange={(e) => setAssignedUser(e.target.value)}
-                  className="block w-full border border-gray-300 rounded-lg p-2 focus:ring focus:ring-indigo-200"
-                >
-                  <option value="">Select a user</option>
-                  {users.map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {user.name || user.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              
 
               <div className="flex justify-end gap-2 mt-4">
                 <button

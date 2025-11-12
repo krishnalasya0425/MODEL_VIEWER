@@ -73,18 +73,38 @@ export default function Login() {
   const navigate = useNavigate();
   const { darkMode } = useTheme(); // ✅ get theme
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await API.post("/auth/login", { email, password });
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("role", res.data.user.role);
-      localStorage.setItem("userId", res.data.user._id);
-      navigate(res.data.user.role === "admin" ? "/admin" : "/user");
-    } catch (err) {
-      alert(err.response?.data?.error || "Login failed");
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    // Step 1: Login the user
+    const res = await API.post("/auth/login", { email, password });
+    const { token, user } = res.data;
+
+    // Step 2: Store core user info
+    localStorage.setItem("token", token);
+    localStorage.setItem("role", user.role);
+    localStorage.setItem("userId", user._id);
+    localStorage.setItem("email", user.email);
+
+    // Step 3: Fetch admin email if the user is NOT admin
+    if (user.role !== "admin") {
+      try {
+        const { data: admin } = await API.get("/auth/admin"); // 👈 Backend route that returns admin email
+        if (admin?.email) {
+          localStorage.setItem("adminEmail", admin.email);
+        }
+      } catch (err) {
+        console.error("Error fetching admin email:", err);
+      }
     }
-  };
+
+    // Step 4: Redirect based on role
+    navigate(user.role === "admin" ? "/admin" : "/user");
+  } catch (err) {
+    alert(err.response?.data?.error || "Login failed");
+  }
+};
+
 
   return (
     <div

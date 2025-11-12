@@ -1337,7 +1337,7 @@
 //   );
 // }
 // === UserDashboard.jsx ===
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../utils/api";
 import "@google/model-viewer";
@@ -1348,12 +1348,7 @@ import {
   Bell,
   User,
   LogOut,
-  Users,
   FolderPlus,
-  Edit,
-  Trash,
-  Info,
-  Plus,
   X,
   Sun,
   Moon,
@@ -1361,52 +1356,172 @@ import {
   ZoomOut,
   Eye,
   Maximize,
-  View
+  View,
+  Paperclip, 
+  Send,
+  CheckCircle,
+  Mail,
+  Search,
+  Grid3X3,
+  Loader,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
-
-
-function RightDescriptionPanel({ selectedProject }) {
+// Optimized RightDescriptionPanel with memoization
+const RightDescriptionPanel = React.memo(({ selectedProject }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   if (!selectedProject) return null;
 
-  const desc = selectedProject.description || "No description available.";
-  const shortDesc = desc.length > 300 ? desc.slice(0, 300) + "..." : desc;
+  const { darkMode } = selectedProject;
+  const desc = selectedProject.description || 'No description available.';
+  const shortDesc = useMemo(() => 
+    desc.length > 300 ? desc.slice(0, 300) + '...' : desc,
+    [desc]
+  );
 
   return (
     <div
-      className={`transition-all duration-500 ${collapsed ? "w-6" : "w-96"
-        } bg-black/60 border-l border-purple-700 h-full relative flex flex-col`}
+      className={`transition-all duration-300 ${collapsed ? 'w-6' : 'w-96'
+        } ${darkMode ? 'bg-gray-900/95 border-l border-purple-500 text-gray-200' : 'bg-white/95 border-l border-purple-200 text-gray-900'} h-full relative flex flex-col backdrop-blur-sm`}
     >
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute top-1/2 -left-3 transform -translate-y-1/2 bg-purple-700 hover:bg-purple-800 text-white rounded-full p-1"
+        className={`absolute top-1/2 -left-3 transform -translate-y-1/2 rounded-full p-2 shadow-lg transition-all ${darkMode ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`}
       >
-        {collapsed ? ">" : "<"}
+        {collapsed ? '>' : '<'}
       </button>
 
       {!collapsed && (
-        <div className="p-6 text-gray-200 overflow-y-auto">
-          <h3 className="text-purple-400 text-lg font-semibold mb-3">{selectedProject.name}</h3>
-          <p className="text-sm leading-relaxed text-gray-300">
-            {expanded ? desc : shortDesc}
-          </p>
+        <div className="p-6 overflow-y-auto">
+          <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-purple-400' : 'text-purple-700'}`}>
+            {selectedProject.name}
+          </h3>
+          <p className="text-sm leading-relaxed">{expanded ? desc : shortDesc}</p>
 
           {desc.length > 300 && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="mt-4 text-purple-400 hover:text-purple-300 text-sm underline"
+              className={`mt-4 text-sm font-medium px-4 py-2 rounded-lg transition-colors ${darkMode ? 'bg-purple-800/50 hover:bg-purple-700 text-purple-300' : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                }`}
             >
-              {expanded ? "View Less" : "View More"}
+              {expanded ? 'View Less' : 'View More'}
             </button>
           )}
         </div>
       )}
     </div>
   );
-}
+});
+
+// Optimized Project Card Component for Grid Layout
+const ProjectCard = React.memo(({ project, isSelected, onClick, darkMode }) => {
+  return (
+    <div
+      onClick={onClick}
+      className={`p-6 rounded-2xl cursor-pointer transition-all duration-300 border-2 ${
+        isSelected 
+          ? darkMode 
+            ? 'border-purple-500 bg-purple-900/30 shadow-2xl shadow-purple-500/30' 
+            : 'border-purple-400 bg-purple-50 shadow-2xl shadow-purple-200'
+          : darkMode 
+            ? 'border-gray-700 bg-gray-800/50 hover:border-purple-500 hover:bg-purple-900/20 hover:shadow-2xl hover:shadow-purple-500/20' 
+            : 'border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50 hover:shadow-2xl hover:shadow-purple-200'
+      }`}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <h4 className="font-bold text-xl mb-2 truncate">{project.name}</h4>
+          <p className={`text-sm line-clamp-3 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            {project.description || 'No description available'}
+          </p>
+        </div>
+        <div className={`ml-4 px-3 py-1 rounded-full text-xs font-semibold ${darkMode ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
+          {project.subModels?.length || 0} models
+        </div>
+      </div>
+      <div className={`flex items-center gap-2 text-sm ${darkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+        <FolderPlus size={16} />
+        <span>Click to view models</span>
+      </div>
+    </div>
+  );
+});
+
+// Optimized Model Card Component
+const ModelCard = React.memo(({ model, onClick, darkMode, isMain = false }) => {
+  return (
+    <div
+      className={`group cursor-pointer rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
+        darkMode 
+          ? isMain
+            ? 'bg-gradient-to-br from-purple-900/50 to-blue-900/50 border border-purple-500/30 hover:border-purple-400' 
+            : 'bg-gradient-to-br from-gray-800/50 to-purple-900/50 border border-gray-600 hover:border-purple-400'
+          : isMain
+            ? 'bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 hover:border-purple-300'
+            : 'bg-gradient-to-br from-gray-50 to-purple-50 border border-gray-200 hover:border-purple-300'
+      }`}
+      onClick={onClick}
+    >
+      <div className={`p-6 border-b ${darkMode ? isMain ? 'border-purple-500/30' : 'border-gray-600' : isMain ? 'border-purple-200' : 'border-gray-200'}`}>
+        <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+          <div className={`p-2 rounded-lg ${isMain ? (darkMode ? 'bg-purple-600' : 'bg-purple-500') : (darkMode ? 'bg-blue-600' : 'bg-blue-500')}`}>
+            <View className="text-white" size={18} />
+          </div>
+          {isMain ? 'Main Model' : model.name}
+        </h3>
+        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} ${!isMain ? 'line-clamp-2' : ''}`}>
+          {isMain ? 'Primary 3D model for this project' : (model.description || '3D model component')}
+        </p>
+      </div>
+      <div className="p-4 bg-black/20 text-center">
+        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+          isMain
+            ? darkMode 
+              ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+              : 'bg-purple-500 hover:bg-purple-600 text-white'
+            : darkMode 
+              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
+        }`}>
+          <Eye size={16} />
+          View {isMain ? 'in 3D' : 'Model'}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// Pagination Component
+const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex justify-center items-center gap-4 mt-8">
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="p-2 rounded-lg bg-purple-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-600 transition-colors"
+      >
+        <ChevronLeft size={20} />
+      </button>
+      
+      <span className="text-sm font-medium">
+        Page {currentPage} of {totalPages}
+      </span>
+      
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="p-2 rounded-lg bg-purple-500 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-purple-600 transition-colors"
+      >
+        <ChevronRight size={20} />
+      </button>
+    </div>
+  );
+};
 
 export default function UserDashboard() {
   const navigate = useNavigate();
@@ -1416,73 +1531,140 @@ export default function UserDashboard() {
   const [selectedModel, setSelectedModel] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [vrPopup, setVrPopup] = useState({ open: false, fileId: null });
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showHelpPopup, setShowHelpPopup] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [helpForm, setHelpForm] = useState({
+    to: "",
+    from: "",
+    subject: "",
+    message: "",
+    attachments: []
+  });
+  const [loading, setLoading] = useState(false);
+  const [modelLoading, setModelLoading] = useState(false);
+  
+  const userId = localStorage.getItem("userId");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
+  // Optimized search with useMemo
+  const filteredProjects = useMemo(() => 
+    projects.filter((p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    [projects, searchTerm]
+  );
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentProjects = filteredProjects.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Optimized project data fetching
   useEffect(() => {
     const fetchProjects = async () => {
       try {
+        setLoading(true);
         const userId = localStorage.getItem("userId");
         if (!userId) return;
         const res = await API.get(`/projects/my-projects?userId=${userId}`);
         setProjects(res.data);
       } catch (err) {
         console.error("Error fetching projects:", err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchProjects();
   }, []);
+
+  // Optimized notifications with cleanup
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchNotifications = async () => {
+      try {
+        const res = await API.get(`/notifications/user/${userId}`);
+        setNotifications(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+
+    return () => clearInterval(interval);
+  }, [userId]);
 
   const handleLogout = () => {
     localStorage.clear();
     navigate("/login");
   };
 
-  const openModelPopup = (fileId, fileName) => {
-    const url = `http://localhost:5000/api/projects/file/${fileId}`;
-    setSelectedModel({ url, name: fileName });
+  // Optimized model opening with loading state
+  const openModelPopup = async (fileId, fileName) => {
+    try {
+      setModelLoading(true);
+      const url = `http://localhost:5000/api/projects/file/${fileId}`;
+      setSelectedModel({ url, name: fileName });
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error("Error opening model:", error);
+    } finally {
+      setModelLoading(false);
+    }
   };
-  const handleZoom = (delta) => {
+
+  // Optimized zoom handler
+  const handleZoom = useMemo(() => (delta) => {
     setZoom((prevZoom) => {
       const newZoom = Math.min(3, Math.max(0.5, prevZoom + delta));
       const viewer = document.getElementById("model-viewer-3d");
 
-      if (viewer && viewer.getCameraOrbit) {
-        const orbit = viewer.getCameraOrbit();
+      if (viewer) {
+        requestAnimationFrame(() => {
+          try {
+            if (viewer.getCameraOrbit) {
+              const orbit = viewer.getCameraOrbit();
+              const radiusStr = orbit.radius?.toString() || "2.5m";
+              const match = radiusStr.match(/([\d.]+)/);
+              const radius = match ? parseFloat(match[1]) : 2.5;
+              const azimuth = orbit.theta?.deg ?? 0;
+              const elevation = orbit.phi?.deg ?? 75;
 
-        const radiusStr = orbit.radius?.toString() || "2.5m";
-        const match = radiusStr.match(/([\d.]+)/);
-        const radius = match ? parseFloat(match[1]) : 2.5;
-        const azimuth = orbit.theta?.deg ?? 0;
-        const elevation = orbit.phi?.deg ?? 75;
-
-
-        const newRadius = Math.max(0.1, Math.min(100, radius * (prevZoom / newZoom)));
-
-        console.log(
-          `Zoom change: old radius ${radius.toFixed(2)} → new radius ${newRadius.toFixed(2)}`
-        );
-
-
-        viewer.setAttribute(
-          "camera-orbit",
-          `${azimuth}deg ${elevation}deg ${newRadius}m`
-        );
-      } else if (viewer) {
-
-        const currentOrbit = viewer.getAttribute("camera-orbit") || "0deg 75deg 2.5m";
-        const parts = currentOrbit.split(" ");
-        const azimuth = parts[0];
-        const elevation = parts[1];
-        const radiusMatch = parts[2]?.match(/([\d.]+)m/);
-        const radius = radiusMatch ? parseFloat(radiusMatch[1]) : 2.5;
-        const newRadius = Math.max(0.2, Math.min(10, radius * (prevZoom / newZoom)));
-
-        viewer.setAttribute("camera-orbit", `${azimuth} ${elevation} ${newRadius}m`);
+              const newRadius = Math.max(0.1, Math.min(100, radius * (prevZoom / newZoom)));
+              viewer.setAttribute(
+                "camera-orbit",
+                `${azimuth}deg ${elevation}deg ${newRadius}m`
+              );
+            } else {
+              const currentOrbit = viewer.getAttribute("camera-orbit") || "0deg 75deg 2.5m";
+              const parts = currentOrbit.split(" ");
+              const azimuth = parts[0];
+              const elevation = parts[1];
+              const radiusMatch = parts[2]?.match(/([\d.]+)m/);
+              const radius = radiusMatch ? parseFloat(radiusMatch[1]) : 2.5;
+              const newRadius = Math.max(0.2, Math.min(10, radius * (prevZoom / newZoom)));
+              viewer.setAttribute("camera-orbit", `${azimuth} ${elevation} ${newRadius}m`);
+            }
+          } catch (error) {
+            console.warn("Zoom adjustment failed:", error);
+          }
+        });
       }
 
       return newZoom;
     });
-  };
+  }, []);
 
   const handleVR = (fileId) => {
     setVrPopup({ open: true, fileId });
@@ -1490,14 +1672,21 @@ export default function UserDashboard() {
 
   const handleFullScreen = () => {
     const viewer = document.getElementById("model-viewer-3d");
-    document.fullscreenElement ? document.exitFullscreen() : viewer?.requestFullscreen?.();
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      viewer?.requestFullscreen?.();
+    }
   };
 
-
+  // Optimized VR popup effect
   useEffect(() => {
     if (!vrPopup.open) return;
 
+    let mounted = true;
+
     const checkVR = async () => {
+      if (!mounted) return;
 
       let xrStatus = null;
       for (let i = 0; i < 10; i++) {
@@ -1505,20 +1694,21 @@ export default function UserDashboard() {
         if (xrStatus) break;
         await new Promise((r) => setTimeout(r, 100));
       }
-      if (!xrStatus) return;
+      if (!xrStatus || !mounted) return;
 
       if (navigator.xr) {
         try {
           const supported = await navigator.xr.isSessionSupported("immersive-vr");
-          if (supported) {
+          if (supported && mounted) {
             xrStatus.textContent = "✅ Meta Quest 3 detected. Launching Unity VR...";
             fetch("http://localhost:5000/api/system/launch-unity-vr", { method: "POST" })
               .then((r) => r.json())
               .then((data) => {
+                if (!mounted) return;
                 if (data.success) {
                   xrStatus.textContent = "🚀 Unity VR launched successfully!";
                   if (!vrPopup.fileId) {
-                    console.error("❌ No fileId found for VR view. Popup state:", vrPopup);
+                    console.error("❌ No fileId found for VR view.");
                     alert("File ID missing — cannot load model in VR.");
                     return;
                   }
@@ -1530,337 +1720,673 @@ export default function UserDashboard() {
                 setTimeout(() => setVrPopup({ open: false, fileId: null }), 1500);
               })
               .catch(() => {
+                if (!mounted) return;
                 xrStatus.textContent = "⚠️ VR bridge connection failed.";
                 window.open(`/vr-viewer?file=${vrPopup.fileId}`, "_blank");
               });
-          } else {
+          } else if (mounted) {
             xrStatus.textContent = "❌ No VR headset detected. Connect Meta Quest 3.";
           }
         } catch {
-          xrStatus.textContent = "⚠️ VR not supported on this browser.";
+          if (mounted) xrStatus.textContent = "⚠️ VR not supported on this browser.";
         }
-      } else {
+      } else if (mounted) {
         xrStatus.textContent = "⚠️ WebXR not available. Use Chrome or Meta Quest Browser.";
       }
     };
 
     checkVR();
+
+    return () => {
+      mounted = false;
+    };
   }, [vrPopup.open]);
-
-
-
 
   return (
     <div
-      className={`flex min-h-screen transition-colors duration-500 ${darkMode
-        ? "bg-gradient-to-br from-blue-900 via-purple-900 to-black text-white"
-        : "bg-gradient-to-br from-gray-100 via-gray-200 to-white text-gray-900"
+      className={`min-h-screen transition-colors duration-300 relative ${darkMode
+        ? "bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800 text-white"
+        : "bg-gradient-to-br from-blue-50 via-purple-50 to-gray-100 text-gray-900"
         }`}
     >
+      {/* Simplified Background */}
+      <div className={`absolute inset-0 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`} />
 
-
-      <aside
-        className={`w-64 backdrop-blur-lg border-r flex flex-col transition-colors duration-500 ${darkMode
-          ? "bg-black/40 border-purple-800"
-          : "bg-white border-gray-300 text-gray-800"
-          }`}
-      >
-
-        <div className="p-4 text-center border-b border-purple-800 text-purple-400 font-bold text-xl">
-          My Projects
-        </div>
-        <div className="flex-1 overflow-auto">
-          {projects.length > 0 ? (
-            projects.map((p) => (
-              <div
-                key={p._id}
-                onClick={() => setSelectedProject(p)}
-                className={`cursor-pointer px-4 py-3 border-b border-purple-800 hover:bg-purple-800/30 transition ${selectedProject?._id === p._id ? "bg-purple-900/50" : ""
-                  }`}
-              >
-                <span className="font-semibold">{p.name}</span>
+      <div className="relative z-10">
+        {/* Top Navigation Bar */}
+        <header className={`sticky top-0 z-40 backdrop-blur-sm border-b ${darkMode ? 'bg-gray-900/95 border-gray-700' : 'bg-white/95 border-gray-200'}`}>
+          <div className="flex items-center justify-between p-6">
+            {/* Logo and Search Bar */}
+            <div className="flex items-center gap-6 flex-1">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${darkMode ? 'bg-purple-600' : 'bg-purple-500'}`}>
+                  <Grid3X3 className="text-white" size={24} />
+                </div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                  EdgeVR
+                </h1>
               </div>
-            ))
-          ) : (
-            <p className="p-4 text-gray-400">No projects found.</p>
-          )}
-        </div>
-        <div className="mt-auto pt-6 border-t border-gray-700 relative">
-          <button
-            onClick={() => setShowProfileMenu((prev) => !prev)}
-            className="flex items-center gap-2 text-gray-300 hover:text-indigo-400 transition"
-          >
-            <User className="w-5 h-5" />
-            <span>Profile</span>
-          </button>
 
-          {showProfileMenu && (
-            <div
-              className={`absolute left-0 bottom-14 w-56 rounded-lg shadow-lg p-3 z-50 ${darkMode ? "bg-[#1E293B]" : "bg-white border border-gray-300"
-                }`}
-            >
-              <p
-                className={`text-sm mb-3 ${darkMode ? "text-gray-300" : "text-gray-700"
-                  }`}
-              >
-                <strong>My Details:</strong> <br />
-                <span className="text-xs">admin@edgevr.com</span>
-              </p>
+              {/* Search Bar */}
+              <div className={`relative rounded-xl overflow-hidden max-w-md flex-1 ${darkMode ? 'bg-gray-800' : 'bg-white shadow-sm'}`}>
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search projects..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className={`w-full pl-10 pr-4 py-3 focus:outline-none ${darkMode ? 'bg-gray-800 text-white placeholder-gray-400' : 'bg-white text-gray-900 placeholder-gray-500'}`}
+                />
+              </div>
+            </div>
 
+            {/* Right Side Controls */}
+            <div className="flex items-center gap-4">
               <button
                 onClick={toggleDarkMode}
-                className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm hover:bg-indigo-600 hover:text-white transition"
+                className={`p-3 rounded-xl transition-all ${darkMode ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-purple-100 hover:bg-purple-200 text-purple-700'}`}
               >
-                <span>Theme Settings</span>
-                {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
 
               <button
-                onClick={handleLogout}
-                className="flex items-center justify-between w-full px-3 py-2 mt-2 rounded-md text-sm hover:bg-red-600 hover:text-white transition"
+                onClick={() => setShowNotifications(true)}
+                className={`relative p-3 rounded-xl transition-all ${darkMode ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
               >
-                <span>Logout</span>
-                <LogOut size={16} />
+                <Bell size={20} />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowHelpPopup(true)}
+                className={`px-4 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                  darkMode 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'bg-green-500 hover:bg-green-600 text-white'
+                }`}
+              >
+                <Mail size={18} />
+                Get Help
+              </button>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className={`px-4 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 ${
+                  darkMode 
+                    ? 'bg-red-600 hover:bg-red-700 text-white' 
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
+              >
+                <LogOut size={18} />
+                Logout
               </button>
             </div>
-          )}
-        </div>
-      </aside>
+          </div>
+        </header>
 
-      {/* MAIN AREA */}
-      <main className="flex-1 p-8 overflow-auto">
-        {!selectedProject && (
-          <p className="text-center text-gray-300">Select a project from the sidebar.</p>
-        )}
+        {/* Main Content Area */}
+        <main className="p-8">
+          {selectedProject ? (
+            /* Project Details View */
+            <>
+              {/* Project Header */}
+              <div className={`mb-8 p-6 rounded-2xl ${darkMode ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <button
+                      onClick={() => setSelectedProject(null)}
+                      className={`mb-4 px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${
+                        darkMode 
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                      }`}
+                    >
+                      <ChevronLeft size={16} />
+                      Back to Projects
+                    </button>
+                    <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                      {selectedProject.name}
+                    </h2>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-sm font-semibold ${darkMode ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
+                    {selectedProject.subModels?.length || 0} Models
+                  </div>
+                </div>
+                <p className={`text-lg leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {selectedProject.description}
+                </p>
+              </div>
 
-        {selectedProject && (
-          <>
-            <h2 className="text-2xl font-bold text-purple-300 mb-4">
-              {selectedProject.name}
-            </h2>
-            <p className="text-gray-400 mb-6">{selectedProject.description}</p>
+              {/* 3D Models Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Main Model Card */}
+                {selectedProject.modelFileId && (
+                  <ModelCard
+                    model={selectedProject}
+                    onClick={() => openModelPopup(selectedProject.modelFileId, selectedProject.modelFileName)}
+                    darkMode={darkMode}
+                    isMain={true}
+                  />
+                )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {selectedProject.modelFileId && (
-                <div
-                  className="bg-black/50 border border-purple-700 rounded-xl p-4 hover:shadow-purple-500/40 hover:scale-[1.02] transition cursor-pointer"
-                  onClick={() =>
-                    openModelPopup(selectedProject.modelFileId, selectedProject.modelFileName)
-                  }
-                >
-                  <h3 className="text-purple-300 font-semibold mb-2">Main Model</h3>
+                {/* Sub Models */}
+                {selectedProject.subModels?.map((subModel, index) => (
+                  <ModelCard
+                    key={index}
+                    model={subModel}
+                    onClick={() => openModelPopup(subModel.fileId, subModel.fileName)}
+                    darkMode={darkMode}
+                    isMain={false}
+                  />
+                ))}
+              </div>
+
+              {/* Empty State for No Models */}
+              {!selectedProject.modelFileId && (!selectedProject.subModels || selectedProject.subModels.length === 0) && (
+                <div className={`text-center py-12 rounded-2xl ${darkMode ? 'bg-gray-800/30' : 'bg-white/30'}`}>
+                  <Grid3X3 className={`mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} size={64} />
+                  <h3 className="text-xl font-bold mb-2">No 3D Models</h3>
+                  <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                    This project doesn't contain any 3D models yet.
+                  </p>
                 </div>
               )}
+            </>
+          ) : (
+            /* Projects Grid View */
+            <>
+              {/* Projects Header */}
+             
 
-              {selectedProject.subModels?.map((s, i) => (
-                <div
-                  key={i}
-                  className="bg-black/50 border border-purple-700 rounded-xl p-4 hover:shadow-purple-500/40 hover:scale-[1.02] transition cursor-pointer"
-                  onClick={() => openModelPopup(s.fileId, s.fileName)}
-                >
-                  <h3 className="text-purple-300 font-semibold mb-2">{s.name}</h3>
+              {loading ? (
+                <div className="flex justify-center items-center py-16">
+                  <Loader className="animate-spin text-purple-500" size={32} />
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-      </main>
+              ) : currentProjects.length > 0 ? (
+                <>
+                  {/* Projects Grid - 8 per page */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {currentProjects.map((project) => (
+                      <ProjectCard
+                        key={project._id}
+                        project={project}
+                        isSelected={selectedProject?._id === project._id}
+                        onClick={() => setSelectedProject(project)}
+                        darkMode={darkMode}
+                      />
+                    ))}
+                  </div>
 
+                  {/* Pagination */}
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                </>
+              ) : (
+                <div className={`text-center py-16 rounded-2xl ${darkMode ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm`}>
+                  <FolderPlus className={`mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} size={64} />
+                  <h2 className="text-2xl font-bold mb-2">No Projects Found</h2>
+                  <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                    {searchTerm ? 'Try adjusting your search terms' : 'No projects available in your account'}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </main>
+      </div>
 
+      {/* 3D Model Viewer Modal */}
       {selectedModel && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-          <div className="relative bg-gradient-to-br from-black via-gray-900 to-black border border-purple-700 rounded-2xl shadow-2xl w-[90vw] h-[85vh] overflow-hidden flex">
+        <div className={`fixed inset-0 flex items-center justify-center z-50 transition-colors duration-300 ${darkMode ? 'bg-black/90' : 'bg-white/95'}`}>
+          <div
+            className={`relative rounded-3xl shadow-2xl w-[95vw] h-[90vh] overflow-hidden flex transition-colors duration-300 ${
+              darkMode
+                ? 'bg-gradient-to-br from-gray-900 to-purple-900 border border-purple-500'
+                : 'bg-white border border-gray-300'
+            }`}
+          >
+            {/* Close Button */}
             <button
               onClick={() => {
                 setSelectedModel(null);
                 setZoom(1);
               }}
-              className="absolute top-3 right-4 text-gray-400 hover:text-red-500 text-2xl z-50"
+              className={`absolute top-4 right-4 z-50 p-3 rounded-full transition-colors ${
+                darkMode 
+                  ? 'bg-gray-800 hover:bg-red-600 text-white' 
+                  : 'bg-white hover:bg-red-500 text-gray-800 hover:text-white shadow-lg'
+              }`}
             >
-              ✕
+              <X size={20} />
             </button>
 
-            <div className="flex-1 relative bg-black overflow-hidden rounded-l-2xl">
-              {selectedModel.url.endsWith(".fbx") ? (
-                <FBXViewer fileUrl={selectedModel.url} zoom={zoom} />
-              ) : (
-                <>
-                  <div
-                    id="loading-overlay"
-                    className="absolute inset-0 flex items-center justify-center bg-black text-purple-400 text-lg font-semibold"
-                  >
-                    Loading 3D model...
+            {/* 3D Viewer */}
+            <div className="flex-1 relative overflow-hidden rounded-l-3xl">
+              {modelLoading && (
+                <div
+                  className={`absolute inset-0 flex items-center justify-center text-lg font-semibold transition-colors duration-300 z-10 ${
+                    darkMode ? 'bg-black text-purple-400' : 'bg-white text-purple-600'
+                  }`}
+                >
+                  <div className="text-center">
+                    <Loader className="w-16 h-16 animate-spin mx-auto mb-4 text-purple-500" />
+                    Loading 3D Model...
                   </div>
-
-                  <model-viewer
-                    id="model-viewer-3d"
-                    src={selectedModel.url}
-                    alt="3D Model"
-                    camera-controls
-                    auto-rotate
-                    xr-environment
-                    ar
-                    camera-target="0m 0m 0m"
-                    interaction-prompt="none"
-                    onLoad={(e) => {
-                      const viewer = e.target;
-                      const overlay = document.getElementById("loading-overlay");
-                      if (overlay) overlay.style.display = "none";
-
-                      const scene = viewer.model?.scene;
-                      if (scene) {
-                        scene.scale.set(150, 150, 150);
-                      }
-
-                      // ✅ Center model properly & keep distance
-                      viewer.setAttribute("camera-orbit", "0deg 75deg 25m");
-                      viewer.setAttribute("camera-target", "0m 1.5m 0m");
-                    }}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      backgroundColor: "transparent",
-                      transition: "camera-orbit 0.3s ease-out",
-                    }}
-                  ></model-viewer>
-                </>
+                </div>
               )}
 
+              {selectedModel.url.endsWith('.fbx') ? (
+                <FBXViewer fileUrl={selectedModel.url} zoom={zoom} darkMode={darkMode} />
+              ) : (
+                <model-viewer
+                  id="model-viewer-3d"
+                  src={selectedModel.url}
+                  alt="3D Model"
+                  camera-controls
+                  auto-rotate
+                  xr-environment
+                  ar
+                  camera-target="0m 0m 0m"
+                  interaction-prompt="none"
+                  onLoad={() => setModelLoading(false)}
+                  onError={() => setModelLoading(false)}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: darkMode ? 'transparent' : '#fff',
+                  }}
+                ></model-viewer>
+              )}
 
-              <div className="absolute bottom-5 right-5 flex gap-3 z-50">
+              {/* Control Buttons */}
+              <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-50">
                 <button
                   onClick={() => handleZoom(0.2)}
-                  className="bg-purple-600 hover:bg-purple-700 p-3 rounded-full shadow-md"
+                  className={`p-3 rounded-full shadow-lg transition-all hover:scale-110 ${
+                    darkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
+                  } text-white`}
                 >
                   <ZoomIn size={20} />
                 </button>
                 <button
                   onClick={() => handleZoom(-0.2)}
-                  className="bg-purple-600 hover:bg-purple-700 p-3 rounded-full shadow-md"
+                  className={`p-3 rounded-full shadow-lg transition-all hover:scale-110 ${
+                    darkMode ? 'bg-purple-600 hover:bg-purple-700' : 'bg-purple-500 hover:bg-purple-600'
+                  } text-white`}
                 >
                   <ZoomOut size={20} />
                 </button>
                 <button
                   onClick={() => {
-                    const viewer = document.getElementById("model-viewer-3d");
+                    const viewer = document.getElementById('model-viewer-3d');
                     if (viewer) {
-                      const isAuto = viewer.getAttribute("auto-rotate") !== null;
+                      const isAuto = viewer.getAttribute('auto-rotate') !== null;
                       if (isAuto) {
-                        viewer.removeAttribute("auto-rotate");
-                        viewer.cameraOrbit = "0deg 75deg 2.5m";
+                        viewer.removeAttribute('auto-rotate');
                       } else {
-                        viewer.setAttribute("auto-rotate", "");
+                        viewer.setAttribute('auto-rotate', '');
                       }
                     }
                   }}
-                  className="bg-blue-600 hover:bg-blue-700 p-3 rounded-full shadow-md"
+                  className={`p-3 rounded-full shadow-lg transition-all hover:scale-110 ${
+                    darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                  } text-white`}
                 >
                   <Eye size={20} />
                 </button>
                 <button
-                  onClick={() => handleVR(selectedModel.url.split("/").pop())}
-                  className="bg-green-600 hover:bg-green-700 p-3 rounded-full shadow-md"
+                  onClick={() => handleVR(selectedModel.url.split('/').pop())}
+                  className={`p-3 rounded-full shadow-lg transition-all hover:scale-110 ${
+                    darkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'
+                  } text-white`}
                 >
                   <View size={20} />
                 </button>
                 <button
                   onClick={handleFullScreen}
-                  className="bg-gray-700 hover:bg-gray-800 p-3 rounded-full shadow-md"
+                  className={`p-3 rounded-full shadow-lg transition-all hover:scale-110 ${
+                    darkMode ? 'bg-gray-700 hover:bg-gray-800' : 'bg-gray-600 hover:bg-gray-700'
+                  } text-white`}
                 >
                   <Maximize size={20} />
                 </button>
               </div>
             </div>
 
+            {/* Right Description Panel */}
             <RightDescriptionPanel
               selectedProject={{
                 name: selectedModel.name || selectedProject.name,
                 description:
                   selectedProject.subModels?.find(
-                    (s) => s.fileId === selectedModel.url.split("/").pop()
+                    (s) => s.fileId === selectedModel.url.split('/').pop()
                   )?.description ||
                   (selectedProject.modelFileId?.toString() ===
-                    selectedModel.url.split("/").pop()
+                    selectedModel.url.split('/').pop()
                     ? selectedProject.description
-                    : "No description available."),
+                    : 'No description available.'),
+                darkMode,
               }}
             />
+          </div>
+        </div>
+      )}
 
+      {/* VR Popup */}
+      {vrPopup.open && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/80 z-[60]">
+          <div className="bg-gradient-to-br from-gray-900 to-purple-900 border border-purple-500 rounded-2xl shadow-2xl p-8 max-w-md w-full relative text-white">
+            <button
+              onClick={() => setVrPopup({ open: false, fileId: null })}
+              className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl"
+            >
+              ✕
+            </button>
+            <h2 className="text-2xl font-bold mb-4 text-center text-purple-300">
+              Virtual Reality Experience
+            </h2>
+            <div
+              id="xr-status"
+              className="text-center text-gray-300 mb-6 flex flex-col items-center"
+            >
+              <Loader className="w-8 h-8 animate-spin mb-3 text-purple-500" />
+              Checking for VR headset...
+            </div>
+            <div className="text-sm text-gray-400 mt-4 border-t border-purple-800 pt-4">
+              <p className="font-semibold text-purple-300 mb-2">On Meta Quest 3:</p>
+              <ul className="list-disc ml-5 text-left space-y-1">
+                <li>Connect via Oculus Link (USB or Air Link)</li>
+                <li>Or open this site in the Meta Browser (HTTPS)</li>
+                <li>VR will launch automatically when detected</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {vrPopup.open && (
-              <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-[60]">
-                <div className="bg-black border border-purple-700 rounded-xl shadow-lg p-6 max-w-md w-full relative text-white">
-                  <button
-                    onClick={() => {
+      {showNotifications && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+          <div className="w-[400px] max-h-[70vh] overflow-y-auto bg-white border border-gray-300 shadow-2xl rounded-xl p-6 relative">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Notifications</h3>
+              <button
+                onClick={() => setShowNotifications(false)}
+                className="text-gray-400 hover:text-red-500 text-lg"
+              >
+                ✕
+              </button>
+            </div>
 
-                      setVrPopup({ open: false, fileId: null });
-                      const overlay = document.createElement("div");
-                      overlay.id = "restore-overlay";
-                      overlay.innerText = "Restoring viewer...";
-                      overlay.style.position = "absolute";
-                      overlay.style.top = "50%";
-                      overlay.style.left = "50%";
-                      overlay.style.transform = "translate(-50%, -50%)";
-                      overlay.style.background = "rgba(0, 0, 0, 0.6)";
-                      overlay.style.color = "#fff";
-                      overlay.style.padding = "10px 20px";
-                      overlay.style.borderRadius = "10px";
-                      overlay.style.fontSize = "16px";
-                      overlay.style.zIndex = "9999";
-                      document.body.appendChild(overlay);
-                      setTimeout(() => {
-                        const oldViewer = document.getElementById("model-viewer-3d");
-                        if (oldViewer) {
-                          const parent = oldViewer.parentElement;
-                          const src = oldViewer.getAttribute("src");
-                          oldViewer.remove();
-                          const newViewer = document.createElement("model-viewer");
-                          newViewer.id = "model-viewer-3d";
-                          newViewer.setAttribute("src", src);
-                          newViewer.setAttribute("alt", "3D Model");
-                          newViewer.setAttribute("camera-controls", "");
-                          newViewer.setAttribute("auto-rotate", "");
-                          newViewer.setAttribute("xr-environment", "");
-                          newViewer.setAttribute("ar", "");
-                          newViewer.style.width = "100%";
-                          newViewer.style.height = "100%";
-                          newViewer.style.backgroundColor = "transparent";
-                          parent.appendChild(newViewer);
-                        }
-                        setTimeout(() => {
-                          const overlayEl = document.getElementById("restore-overlay");
-                          if (overlayEl) overlayEl.remove();
-                        }, 1000);
-                      }, 800);
-                    }}
-                    className="absolute top-2 right-3 text-gray-400 hover:text-red-500 text-xl"
+            {/* Notification List */}
+            {notifications.length === 0 ? (
+              <p className="text-gray-500 text-center">No notifications</p>
+            ) : (
+              <ul className="space-y-3">
+                {notifications.map((n) => (
+                  <li
+                    key={n._id}
+                    className="flex justify-between items-start bg-gray-50 border border-gray-200 px-4 py-3 rounded-lg hover:shadow-sm transition"
                   >
-                    ✕
-                  </button>
-                  <h2 className="text-xl font-bold mb-4 text-center text-purple-300">
-                    View This Model in Virtual Reality
-                  </h2>
-                  <div
-                    id="xr-status"
-                    className="text-center text-gray-300 mb-4 flex flex-col items-center"
-                  >
-                    <div className="w-6 h-6 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                    Checking for connected VR headset...
-                  </div>
-                  <div className="text-sm text-gray-400 mt-3 border-t border-purple-800 pt-3">
-                    <p><strong>On Meta Quest 3:</strong></p>
-                    <ul className="list-disc ml-5 text-left">
-                      <li>Connect via Oculus Link (USB or Air Link)</li>
-                      <li>Or open this site in the Meta Browser (HTTPS)</li>
-                      <li>VR will launch automatically when detected</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
+                    <div className="pr-3">
+                      <p className="text-sm font-medium text-gray-700">{n.message}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {n.createdAt ? new Date(n.createdAt).toLocaleString() : "No date"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => deleteNotification(n._id)}
+                      className="text-gray-400 hover:text-red-500"
+                      title="Delete"
+                    >
+                      <X size={16} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
       )}
+
+
+      {/* help popup */}
+      {showHelpPopup && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-[70] p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg h-[600px] p-6 flex flex-col gap-4 relative">
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowHelpPopup(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl"
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-2 border-b border-gray-200 pb-3 mb-2">
+              <Mail size={20} className="text-green-500" />
+              <h2 className="text-xl font-semibold text-gray-800">
+                New Help Request
+              </h2>
+            </div>
+
+            {/* Resolved Badge */}
+            {selectedProject?.helpResolved && (
+              <div className="flex items-center justify-center gap-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium mb-2 mx-auto">
+                <CheckCircle size={16} /> Problem Resolved
+              </div>
+            )}
+
+            {/* Form */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+
+                const defaultAdminEmail = "defaultadmin@example.com";
+
+                // ✅ Check if project is selected
+                if (!helpForm.projectId) {
+                  alert("⚠️ Please select a project before submitting a help request.");
+                  return;
+                }
+
+                const formData = new FormData();
+                formData.append("projectId", helpForm.projectId);
+                formData.append("userId", localStorage.getItem("userId"));
+                formData.append("to", helpForm.to || defaultAdminEmail);
+                formData.append("from", helpForm.from);
+                formData.append("subject", helpForm.subject);
+                formData.append("message", helpForm.message);
+                helpForm.attachments.forEach((file) =>
+                  formData.append("attachments", file)
+                );
+
+                try {
+                  await API.post("/help/create", formData, {
+                    headers: { "Content-Type": "multipart/form-data" },
+                  });
+                  alert("✅ Help request submitted!");
+                  setShowHelpPopup(false);
+                } catch (err) {
+                  console.error(err);
+                  alert("❌ Failed to send help request.");
+                }
+              }}
+              className="flex flex-col gap-4 flex-1 overflow-hidden"
+            >
+              {/* Project Selection */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-600 font-medium">
+                  Select Project
+                </label>
+
+                {projects.length === 0 ? (
+                  <p className="text-gray-500 italic text-sm">
+                    No projects found. Please wait or add one first.
+                  </p>
+                ) : (
+                  <select
+                    value={helpForm.projectId || ""}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const selectedProj = projects.find((p) => p._id === selectedId);
+
+                      setHelpForm({
+                        ...helpForm,
+                        projectId: selectedId,
+                        // ✅ Use the project’s assigned admin email if available
+                        to:
+                          selectedProj?.createdBy?.email ||
+                          selectedProj?.adminEmail ||
+                          "defaultadmin@example.com",
+                      });
+                    }}
+                    className="w-full px-2 py-2 rounded-md border border-gray-300 text-gray-800 focus:outline-none focus:ring-1 focus:ring-green-400"
+                  >
+                    <option value="">-- Choose a project --</option>
+                    {projects.map((project) => (
+                      <option key={project._id} value={project._id}>
+                        {project.name || project.title}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Warning message when no project selected */}
+                {!helpForm.projectId && (
+                  <p className="text-red-500 text-xs mt-1">
+                    ⚠️ Please select a project before submitting.
+                  </p>
+                )}
+              </div>
+
+              {/* To */}
+              <div className="flex items-center gap-4">
+                <label className="text-sm text-gray-600 font-medium w-16">To:</label>
+                <input
+                  type="email"
+                  value={helpForm.to || "defaultadmin@example.com"}
+                  readOnly
+                  className="flex-1 border-b border-gray-300 text-gray-800 py-2 focus:outline-none focus:border-green-500"
+                />
+              </div>
+
+              {/* From */}
+              <div className="flex items-center gap-4">
+                <label className="text-sm text-gray-600 font-medium w-16">From:</label>
+                <input
+                  type="email"
+                  value={helpForm.from}
+                  readOnly
+                  className="flex-1 border-b border-gray-300 text-gray-800 py-2 focus:outline-none focus:border-green-500"
+                />
+              </div>
+
+              {/* Subject */}
+              <div className="flex items-center gap-4">
+                <label className="text-sm text-gray-600 font-medium w-16">Subject</label>
+                <input
+                  type="text"
+                  value={helpForm.subject}
+                  onChange={(e) =>
+                    setHelpForm({ ...helpForm, subject: e.target.value })
+                  }
+                  placeholder="Enter subject…"
+                  required
+                  className="flex-1 border-b border-gray-300 text-gray-800 py-2 focus:outline-none focus:border-green-500"
+                />
+              </div>
+
+              {/* Message Box */}
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-600 font-medium">Write your message…</label>
+                <textarea
+                  value={helpForm.message}
+                  onChange={(e) =>
+                    setHelpForm({ ...helpForm, message: e.target.value })
+                  }
+                  placeholder="Describe your issue…"
+                  required
+                  className="w-full px-2 py-2 rounded-md border border-gray-200 text-gray-800 focus:outline-none focus:ring-1 focus:ring-green-400 resize-none h-32"
+                ></textarea>
+              </div>
+
+              {/* Attachment Upload */}
+              <div className="flex flex-col mt-2">
+                <label className="flex items-center gap-1 cursor-pointer text-gray-500 hover:text-green-500 transition">
+                  <Paperclip size={18} />
+                  Attach files
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(e) =>
+                      setHelpForm({
+                        ...helpForm,
+                        attachments: [
+                          ...(helpForm.attachments || []),
+                          ...Array.from(e.target.files),
+                        ],
+                      })
+                    }
+                  />
+                </label>
+
+                {/* Scrollable Attachment List */}
+                {helpForm.attachments?.length > 0 && (
+                  <div className="flex flex-col gap-2 mt-2 overflow-y-auto max-h-24">
+                    {helpForm.attachments.map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium"
+                      >
+                        <span className="truncate max-w-[85%]">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setHelpForm({
+                              ...helpForm,
+                              attachments: helpForm.attachments.filter((_, i) => i !== idx),
+                            })
+                          }
+                          className="hover:text-red-500 transition"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Fixed Send Button */}
+              <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[90%] max-w-lg z-50">
+                <button
+                  type="submit"
+                  disabled={!helpForm.projectId}
+                  className={`font-semibold py-2 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors w-full ${helpForm.projectId
+                    ? "bg-green-500 hover:bg-green-600 text-white"
+                    : "bg-gray-400 text-gray-700 cursor-not-allowed"
+                    }`}
+                >
+                  <Send size={16} /> Send Message
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
