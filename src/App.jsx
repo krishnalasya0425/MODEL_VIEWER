@@ -53,7 +53,11 @@ import AdminDashboard from "./pages/AdminDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import VRViewer from "./pages/VRViewer";
 import LandingPage from "./pages/LandingPage"; // 👈 new
+import AboutUs from "./pages/AboutUs";
 import { ThemeProvider } from "./context/ThemeContext";
+import ForgotPassword from "./pages/ForgotPassword";
+import "./index.css"
+
 const PrivateRoute = ({ children, role }) => {
   const token = localStorage.getItem("token");
   const userRole = localStorage.getItem("role");
@@ -71,8 +75,10 @@ function App() {
       <Routes>
         {/* 👇 Landing page is now the home route */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/about" element={<AboutUs />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+         <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route
           path="/admin"

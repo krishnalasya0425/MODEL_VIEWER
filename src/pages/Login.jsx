@@ -151,6 +151,14 @@ const handleSubmit = async (e) => {
           }`}
           required
         />
+        <div className="text-right">
+          <Link
+            to="/forgot-password"
+            className={`text-sm ${darkMode ? "text-indigo-300" : "text-indigo-600"} hover:underline`}
+          >
+            Forgot password?
+          </Link>
+        </div>
         <button
           type="submit"
           className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded font-medium transition-all duration-200"

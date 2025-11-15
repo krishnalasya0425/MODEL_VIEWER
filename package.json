@@ -16,6 +16,7 @@
     "@react-three/drei": "^9.114.4",
     "@react-three/fiber": "^8.15.10",
     "@react-three/xr": "^6.3.0",
+    "aframe": "^1.7.1",
     "axios": "^1.11.0",
     "framer-motion": "^12.23.16",
     "lucide-react": "^0.542.0",
