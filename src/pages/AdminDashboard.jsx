@@ -36,7 +36,7 @@ export default function AdminDashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [viewImage, setViewImage] = useState(null);
-
+  const [category, setCategory] = useState("");
   const [assignedUser, setAssignedUser] = useState("");
 
   const [showInfoModal, setShowInfoModal] = useState(false);
@@ -111,12 +111,15 @@ export default function AdminDashboard() {
       formData.append("description", projectDesc);
       formData.append("modelName", modelName);
       formData.append("assignedUser", assignedUser);
+      formData.append("category", category);
       if (modelFile) formData.append("modelFile", modelFile);
 
-      const subModelsData = subModels.map((s) => ({
-        name: s.name,
-        description: s.description,
-      }));
+      const subModelsData = subModels
+        .filter((s) => (s.name || "").trim() !== "")
+        .map((s) => ({
+          name: s.name,
+          description: s.description,
+        }));
       formData.append("subModels", JSON.stringify(subModelsData));
       subModels.forEach((s) => {
         if (s.file) formData.append("subModelFiles", s.file);
@@ -206,6 +209,7 @@ export default function AdminDashboard() {
     setProjectName(project.name);
     setProjectDesc(project.description || "");
     setModelName(project.modelName || "");
+    setCategory(project.category || "simulators");
     setSubModels(
       project.subModels?.map((s) => ({
         name: s.name,
@@ -697,6 +701,20 @@ export default function AdminDashboard() {
                   }`}
                 required
               />
+
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={`p-2 rounded border ${darkMode
+                  ? "bg-gray-800 text-white border-gray-600"
+                  : "bg-gray-100 text-gray-900 border-gray-300"
+                  }`}
+              >
+                <option value="" disabled>Categories</option>
+                <option value="simulators">Simulators</option>
+                <option value="vehicles">Vehicles</option>
+                <option value="weapons">Weapons</option>
+              </select>
 
               <textarea
                 placeholder="Description"

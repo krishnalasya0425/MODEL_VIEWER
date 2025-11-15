@@ -236,7 +236,8 @@ export default function UserDashboard() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [restoringFromVR, setRestoringFromVR] = useState(false);
   const [restoring, setRestoring] = useState(false);
-
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [modelMeta, setModelMeta] = useState({ size: 0, type: "", large: false });
   const [modelSearchTerm, setModelSearchTerm] = useState("");
   const [helpForm, setHelpForm] = useState({
     to: localStorage.getItem("adminEmail") || "defaultadmin@example.com",
@@ -253,14 +254,20 @@ export default function UserDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Optimized search with useMemo
-  const filteredProjects = useMemo(() =>
-    projects.filter((p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ),
-    [projects, searchTerm]
-  );
 
+
+  const filteredProjects = useMemo(
+    () =>
+      projects.filter((p) => {
+        const matchesName = p.name
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+        const matchesCategory =
+          categoryFilter === "all" || p.category === categoryFilter;
+        return matchesName && matchesCategory;
+      }),
+    [projects, searchTerm, categoryFilter]
+  );
   // Pagination logic
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -271,7 +278,7 @@ export default function UserDashboard() {
   // Reset to page 1 when search term changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, categoryFilter]);
 
   // Fetch projects
   useEffect(() => {
@@ -628,6 +635,21 @@ export default function UserDashboard() {
                   className={`w-full pl-10 pr-4 py-3 bg-transparent focus:outline-none ${darkMode ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-600'}`}
                 />
               </div>
+              {!selectedProject && (
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className={`rounded-xl px-3 py-3 text-sm backdrop-blur-xl border shadow-lg ${darkMode
+                      ? 'bg-[#020617] border-white/20 text-white'
+                      : 'bg-white/70 border-black/10 text-gray-900'
+                    }`}
+                >
+                  <option value="all" className={darkMode ? 'bg-[#020617] text-white' : ''}>All Categories</option>
+                  <option value="simulators" className={darkMode ? 'bg-[#020617] text-white' : ''}>Simulators</option>
+                  <option value="vehicles" className={darkMode ? 'bg-[#020617] text-white' : ''}>Vehicles</option>
+                  <option value="weapons" className={darkMode ? 'bg-[#020617] text-white' : ''}>Weapons</option>
+                </select>
+              )}
             </div>
 
             {/* Right Side Controls */}
