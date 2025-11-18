@@ -38,6 +38,8 @@ export default function AdminDashboard() {
   const [viewImage, setViewImage] = useState(null);
   const [category, setCategory] = useState("");
   const [assignedUser, setAssignedUser] = useState("");
+  const [simulatorType, setSimulatorType] = useState("");
+  const [unityBuild, setUnityBuild] = useState(null);
 
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -112,7 +114,15 @@ export default function AdminDashboard() {
       formData.append("modelName", modelName);
       formData.append("assignedUser", assignedUser);
       formData.append("category", category);
+      formData.append("simulatorType", simulatorType);
+
       if (modelFile) formData.append("modelFile", modelFile);
+      if (unityBuild) {
+        formData.append("unityZip", unityBuild);  // only 1 file
+      }
+
+
+
 
       const subModelsData = subModels
         .filter((s) => (s.name || "").trim() !== "")
@@ -690,116 +700,168 @@ export default function AdminDashboard() {
             </div>
 
             <form onSubmit={handleAddProject} className="flex flex-col gap-3">
+
+              {/* Project Name */}
               <input
                 type="text"
                 placeholder="Project Name"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                className={`p-2 rounded border ${darkMode
-                  ? "bg-gray-800 text-white border-gray-600"
+                className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
                   : "bg-gray-100 text-gray-900 border-gray-300"
                   }`}
                 required
               />
 
+              {/* Category */}
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className={`p-2 rounded border ${darkMode
-                  ? "bg-gray-800 text-white border-gray-600"
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                }}
+                className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
                   : "bg-gray-100 text-gray-900 border-gray-300"
                   }`}
               >
-                <option value="" disabled>Categories</option>
+                <option value="" disabled>Select Category</option>
                 <option value="simulators">Simulators</option>
                 <option value="vehicles">Vehicles</option>
                 <option value="weapons">Weapons</option>
               </select>
 
+              {/* Description */}
               <textarea
                 placeholder="Description"
                 value={projectDesc}
                 onChange={(e) => setProjectDesc(e.target.value)}
                 rows={3}
-                className={`p-2 rounded border resize-none ${darkMode
-                  ? "bg-gray-800 text-white border-gray-600"
+                className={`p-2 rounded border resize-none ${darkMode ? "bg-gray-800 text-white border-gray-600"
                   : "bg-gray-100 text-gray-900 border-gray-300"
                   }`}
               />
 
-              <input
-                type="text"
-                placeholder="Main Model Name"
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
-                className={`p-2 rounded border ${darkMode
-                  ? "bg-gray-800 text-white border-gray-600"
-                  : "bg-gray-100 text-gray-900 border-gray-300"
-                  }`}
-              />
+              {/* ----------------------------------------------------
+        IF CATEGORY = SIMULATORS → SHOW SIMULATOR FIELDS
+      ---------------------------------------------------- */}
+             // In your AdminDashboard component, update the simulator section:
 
-              <label className="text-sm font-semibold text-indigo-400">
-                Main Model File
-              </label>
-              <input
-                type="file"
-                accept=".fbx,.glb"
-                onChange={(e) => setModelFile(e.target.files[0])}
-                className="text-gray-300"
-              />
+              {category === "simulators" && (
+                <>
+                  {/* Simulator Type */}
+                  <label className="text-indigo-400 font-semibold">Simulator Type</label>
+                  <select
+                    value={simulatorType}
+                    onChange={(e) => setSimulatorType(e.target.value)}
+                    className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                      : "bg-gray-100 text-gray-900 border-gray-300"
+                      }`}
+                    required
+                  >
+                    <option value="" disabled>Select Simulator Type</option>
+                    <option value="welding-simulator">Welding Simulator</option>
+                    <option value="driving-simulator">Driving Simulator</option>
+                  </select>
 
-              <h4 className="text-indigo-400 mt-2 font-semibold">Sub Models</h4>
-              {subModels.map((s, i) => (
-                <div
-                  key={i}
-                  className={`flex flex-col gap-2 p-3 rounded border ${darkMode ? "border-gray-600" : "border-gray-300"
-                    }`}
-                >
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Submodel Name"
-                      value={s.name}
-                      onChange={(e) => handleSubModelChange(i, "name", e.target.value)}
-                      className={`p-2 rounded border w-1/2 ${darkMode
-                        ? "bg-gray-800 text-white border-gray-600"
-                        : "bg-gray-100 text-gray-900 border-gray-300"
-                        }`}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Description"
-                      value={s.description}
-                      onChange={(e) =>
-                        handleSubModelChange(i, "description", e.target.value)
-                      }
-                      className={`p-2 rounded border w-1/2 ${darkMode
-                        ? "bg-gray-800 text-white border-gray-600"
-                        : "bg-gray-100 text-gray-900 border-gray-300"
-                        }`}
-                    />
+                  {/* Unity Build Upload */}
+                  <label className="text-indigo-400 font-semibold mt-2">
+                    Upload Unity Build Folder (.zip)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".zip"
+                    onChange={(e) => setUnityBuild(e.target.files[0])}
+                    required
+                  />
+
+                  <div className={`p-3 rounded border ${darkMode ? "bg-blue-900/20 border-blue-600" : "bg-blue-50 border-blue-200"}`}>
+                    <p className="text-blue-600 text-sm">
+                      💡 Upload your Unity build folder as a .zip file containing the .exe and all necessary files
+                    </p>
                   </div>
+                </>
+              )}
+
+              {/* ----------------------------------------------------
+        IF CATEGORY != SIMULATORS → SHOW 3D MODEL FIELDS
+      ---------------------------------------------------- */}
+              {category !== "simulators" && (
+                <>
+                  {/* Main Model Name */}
+                  <input
+                    type="text"
+                    placeholder="Main Model Name"
+                    value={modelName}
+                    onChange={(e) => setModelName(e.target.value)}
+                    className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                      : "bg-gray-100 text-gray-900 border-gray-300"
+                      }`}
+                  />
+
+                  {/* Main File */}
+                  <label className="text-sm font-semibold text-indigo-400">
+                    Main Model File
+                  </label>
                   <input
                     type="file"
                     accept=".fbx,.glb"
-                    onChange={(e) =>
-                      handleSubModelChange(i, "file", e.target.files[0])
-                    }
+                    onChange={(e) => setModelFile(e.target.files[0])}
                     className="text-gray-300"
                   />
-                </div>
-              ))}
 
-              <button
-                type="button"
-                onClick={addSubModelInput}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded mt-2"
-              >
-                + Add Submodel
-              </button>
+                  {/* Sub Models */}
+                  <h4 className="text-indigo-400 mt-2 font-semibold">Sub Models</h4>
+                  {subModels.map((s, i) => (
+                    <div key={i}
+                      className={`flex flex-col gap-2 p-3 rounded border ${darkMode ? "border-gray-600"
+                        : "border-gray-300"
+                        }`}
+                    >
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Submodel Name"
+                          value={s.name}
+                          onChange={(e) => handleSubModelChange(i, "name", e.target.value)}
+                          className={`p-2 rounded border w-1/2 ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                            : "bg-gray-100 text-gray-900 border-gray-300"
+                            }`}
+                        />
 
+                        <input
+                          type="text"
+                          placeholder="Description"
+                          value={s.description}
+                          onChange={(e) =>
+                            handleSubModelChange(i, "description", e.target.value)
+                          }
+                          className={`p-2 rounded border w-1/2 ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                            : "bg-gray-100 text-gray-900 border-gray-300"
+                            }`}
+                        />
+                      </div>
 
+                      <input
+                        type="file"
+                        accept=".fbx,.glb"
+                        onChange={(e) =>
+                          handleSubModelChange(i, "file", e.target.files[0])
+                        }
+                        className="text-gray-300"
+                      />
+                    </div>
+                  ))}
 
+                  <button
+                    type="button"
+                    onClick={addSubModelInput}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded mt-2"
+                  >
+                    + Add Submodel
+                  </button>
+                </>
+              )}
+
+              {/* Footer buttons */}
               <div className="flex justify-end gap-2 mt-4">
                 <button
                   type="button"
@@ -808,6 +870,7 @@ export default function AdminDashboard() {
                 >
                   Cancel
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setShowPreviewModal(true)}
@@ -815,6 +878,7 @@ export default function AdminDashboard() {
                 >
                   Preview
                 </button>
+
                 <button
                   type="submit"
                   className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white"
@@ -823,6 +887,7 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+
           </div>
         </div>
       )}

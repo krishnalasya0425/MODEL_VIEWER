@@ -437,3 +437,9 @@ body.modal-open {
 .animate-pulse-slow {
   animation: pulse-slow 4s ease-in-out infinite;
 }
+
+/* Add this to your global CSS */
+.vr-guide-overlay {
+  z-index: 99999 !important;
+  position: fixed !important;
+}

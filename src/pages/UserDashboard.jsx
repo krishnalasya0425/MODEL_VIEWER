@@ -4,7 +4,7 @@ import API from "../utils/api";
 import "@google/model-viewer";
 import FBXViewer from "../components/FBXViewer";
 import { useTheme } from "../context/ThemeContext";
-
+import axios from "axios";
 import {
   Bell,
   User,
@@ -26,8 +26,21 @@ import {
   Grid3X3,
   Loader,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Play,
+  Video,
+  Wifi,
+  Monitor,
+  Smartphone,
+  Info,        // Add this
+  Check,       // Add this
+  ExternalLink,
+  RotateCcw,
+  Minus,
+  Square
 } from "lucide-react";
+
+
 
 const getUrlParam = (name) => {
   const params = new URLSearchParams(window.location.search);
@@ -44,6 +57,90 @@ const setUrlParam = (name, value) => {
   window.history.replaceState({}, "", url);
 };
 
+const RedirectOverlay = ({ darkMode, onClose }) => {
+  const [countdown, setCountdown] = useState(2);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Auto-close after countdown reaches 0 (fallback)
+  useEffect(() => {
+    if (countdown === 0) {
+      const timeout = setTimeout(() => {
+        onClose();
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [countdown, onClose]);
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-xl z-[99999]">
+      <div className={`backdrop-blur-2xl rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center ${darkMode
+        ? 'bg-gray-900/90 border border-purple-500/30'
+        : 'bg-white/90 border border-purple-400/30'
+        }`}>
+        <div className="flex flex-col items-center gap-4">
+          {/* Animated spinner */}
+          <div className="relative">
+            <div className={`w-16 h-16 rounded-full border-4 ${darkMode ? 'border-purple-500/30' : 'border-purple-400/30'}`}></div>
+            <div className={`absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-t-transparent ${darkMode ? 'border-purple-400' : 'border-purple-600'} animate-spin`}></div>
+            <RotateCcw className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`} size={20} />
+          </div>
+
+          <div>
+            <h2 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+              {countdown > 0 ? 'Redirecting for Optimized Experience' : 'VR Experience Ready'}
+            </h2>
+            <p className={`mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              {countdown > 0
+                ? 'Preparing your VR simulation environment...'
+                : 'VR experience is running in new tab. Return here when finished.'}
+            </p>
+
+            {/* Countdown */}
+            {countdown > 0 && (
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <div className={`px-3 py-1 rounded-lg ${darkMode ? 'bg-purple-600/80' : 'bg-purple-500/80'} text-white font-bold`}>
+                  {countdown}
+                </div>
+                <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
+                  {countdown === 1 ? 'second' : 'seconds'}
+                </span>
+              </div>
+            )}
+
+            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              <p>• VR environment will open in a new tab</p>
+              <p>• Return to this tab when finished</p>
+              <p>• Your progress will be saved automatically</p>
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className={`mt-4 px-6 py-2 rounded-lg font-semibold transition-all backdrop-blur-xl ${darkMode
+              ? 'bg-gray-700/80 hover:bg-gray-600/80 border border-gray-600/30 text-gray-300'
+              : 'bg-gray-300/80 hover:bg-gray-400/80 border border-gray-400/30 text-gray-700'
+              }`}
+          >
+            {countdown > 0 ? 'Cancel Redirect' : 'Close This Message'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 // Optimized RightDescriptionPanel with glassmorphism
 const RightDescriptionPanel = React.memo(({ selectedProject }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -222,6 +319,343 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
   );
 };
 
+// const VRConnectionGuide = ({ darkMode, onClose, onConfirm, loading = false }) => {
+//   return (
+//    <div className="vr-guide-overlay fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+//       {/* Change z-[9999] to z-[99999] */}
+
+//       <div className={`backdrop-blur-2xl rounded-2xl shadow-2xl w-full max-w-2xl max-h-[70vh] overflow-y-auto ${darkMode
+//         ? 'bg-gray-900/90 border border-purple-500/30'
+//         : 'bg-white/90 border border-purple-400/30'
+//         }`}>
+
+//         {/* Header */}
+//         <div className="flex items-center justify-between p-6 border-b border-purple-500/30">
+//           <div className="flex items-center gap-3">
+//             <div className={`p-2 rounded-lg ${darkMode ? 'bg-purple-600/80' : 'bg-purple-500/80'}`}>
+//               <Info className="text-white" size={24} />
+//             </div>
+//             <div>
+//               <h2 className="text-2xl font-bold text-purple-400">VR Setup Guide</h2>
+//               <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+//                 Connect your Oculus Quest to PC for Unity VR experience
+//               </p>
+//             </div>
+//           </div>
+//           <button
+//             onClick={onClose}
+//             disabled={loading}
+//             className={`p-2 rounded-full transition-colors ${darkMode
+//               ? 'hover:bg-red-600/80 text-gray-300 hover:text-white'
+//               : 'hover:bg-red-500/80 text-gray-600 hover:text-white'
+//               } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+//           >
+//             <X size={24} />
+//           </button>
+//         </div>
+
+//         {/* Content */}
+//         <div className="p-6 space-y-6">
+//           {/* Method 1: Oculus Link (USB) */}
+//           <div className={`rounded-xl p-4 ${darkMode ? 'bg-gray-800/50' : 'bg-purple-50/50'}`}>
+//             <h3 className="text-lg font-semibold mb-3 text-green-400 flex items-center gap-2">
+//               <Check size={20} />
+//               Method 1: Oculus Link (USB Cable)
+//             </h3>
+//             <div className="space-y-3">
+//               <div className="flex items-start gap-3">
+//                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+//                   }`}>1</div>
+//                 <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+//                   Connect your Oculus Quest to PC using a high-quality USB 3.0 cable
+//                 </p>
+//               </div>
+//               <div className="flex items-start gap-3">
+//                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+//                   }`}>2</div>
+//                 <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+//                   Put on your headset and enable Oculus Link when prompted
+//                 </p>
+//               </div>
+//               <div className="flex items-start gap-3">
+//                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+//                   }`}>3</div>
+//                 <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+//                   Open Oculus PC app and ensure your headset is connected
+//                 </p>
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Method 2: Air Link (Wireless) */}
+//           <div className={`rounded-xl p-4 ${darkMode ? 'bg-gray-800/50' : 'bg-blue-50/50'}`}>
+//             <h3 className="text-lg font-semibold mb-3 text-blue-400 flex items-center gap-2">
+//               <Wifi size={20} />
+//               Method 2: Air Link (Wireless)
+//             </h3>
+//             <div className="space-y-3">
+//               <div className="flex items-start gap-3">
+//                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+//                   }`}>1</div>
+//                 <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+//                   Ensure your PC and Quest are on the same 5GHz Wi-Fi network
+//                 </p>
+//               </div>
+//               <div className="flex items-start gap-3">
+//                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+//                   }`}>2</div>
+//                 <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+//                   In your Quest headset, go to Settings → Experimental Features → Air Link
+//                 </p>
+//               </div>
+//               <div className="flex items-start gap-3">
+//                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+//                   }`}>3</div>
+//                 <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+//                   Enable Air Link and connect to your PC
+//                 </p>
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Requirements */}
+//           <div className={`rounded-xl p-4 ${darkMode ? 'bg-gray-800/50' : 'bg-orange-50/50'}`}>
+//             <h3 className="text-lg font-semibold mb-3 text-orange-400 flex items-center gap-2">
+//               <Monitor size={20} />
+//               System Requirements
+//             </h3>
+//             <ul className={`space-y-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+//               <li>• Oculus Quest 2/3/Pro headset</li>
+//               <li>• Oculus PC app installed</li>
+//               <li>• VR-ready GPU (NVIDIA GTX 1060 / AMD RX 480 or better)</li>
+//               <li>• Windows 10/11</li>
+//               <li>• USB 3.0 port (for wired connection)</li>
+//               <li>• 5GHz Wi-Fi (for wireless connection)</li>
+//             </ul>
+//           </div>
+
+//           {/* Troubleshooting */}
+//           <div className={`rounded-xl p-4 ${darkMode ? 'bg-gray-800/50' : 'bg-yellow-50/50'}`}>
+//             <h3 className="text-lg font-semibold mb-3 text-yellow-400 flex items-center gap-2">
+//               <Info size={20} />
+//               Quick Tips
+//             </h3>
+//             <ul className={`space-y-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+//               <li>• Restart Oculus services if connection fails</li>
+//               <li>• Update GPU drivers for best performance</li>
+//               <li>• Close background applications for better performance</li>
+//               <li>• Use cable testing tool in Oculus app for USB issues</li>
+//             </ul>
+//           </div>
+//         </div>
+
+//         {/* Footer */}
+//         <div className="flex items-center justify-between p-6 border-t border-purple-500/30">
+//           <button
+//             onClick={onClose}
+//             disabled={loading}
+//             className={`px-6 py-3 rounded-lg font-semibold transition-all backdrop-blur-xl ${darkMode
+//               ? 'bg-gray-700/80 hover:bg-gray-600/80 border border-gray-600/30 text-gray-300'
+//               : 'bg-gray-300/80 hover:bg-gray-400/80 border border-gray-400/30 text-gray-700'
+//               } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+//           >
+//             Cancel
+//           </button>
+//           <button
+//             onClick={onConfirm}
+//             disabled={loading}
+//             className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 backdrop-blur-xl ${loading
+//                 ? 'bg-gray-500/80 cursor-not-allowed'
+//                 : darkMode
+//                   ? 'bg-green-600/80 hover:bg-green-700/80 border border-green-500/30 text-white'
+//                   : 'bg-green-500/80 hover:bg-green-600/80 border border-green-400/30 text-white'
+//               }`}
+//           >
+//             {loading ? (
+//               <>
+//                 <Loader className="animate-spin" size={18} />
+//                 Launching...
+//               </>
+//             ) : (
+//               <>
+//                 <Play size={18} />
+//                 Launch Unity VR
+//               </>
+//             )}
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+const VRConnectionGuide = ({ darkMode, onClose, onConfirm, loading = false, onRedirect }) => {
+  return (
+    <div className="vr-guide-overlay fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 z-[99999]">
+      <div className={`backdrop-blur-2xl rounded-2xl shadow-2xl w-full max-w-2xl max-h-[70vh] overflow-y-auto ${darkMode
+        ? 'bg-gray-900/90 border border-purple-500/30'
+        : 'bg-white/90 border border-purple-400/30'
+        }`}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-purple-500/30">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-purple-600/80' : 'bg-purple-500/80'}`}>
+              <Info className="text-white" size={24} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-purple-400">VR Setup Guide</h2>
+              <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                Connect your Oculus Quest to PC for Unity VR experience
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className={`p-2 rounded-full transition-colors ${darkMode
+              ? 'hover:bg-red-600/80 text-gray-300 hover:text-white'
+              : 'hover:bg-red-500/80 text-gray-600 hover:text-white'
+              } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {/* Method 1: Oculus Link (USB) */}
+          <div className={`rounded-xl p-4 ${darkMode ? 'bg-gray-800/50' : 'bg-purple-50/50'}`}>
+            <h3 className="text-lg font-semibold mb-3 text-green-400 flex items-center gap-2">
+              <Check size={20} />
+              Method 1: Oculus Link (USB Cable)
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+                  }`}>1</div>
+                <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                  Connect your Oculus Quest to PC using a high-quality USB 3.0 cable
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+                  }`}>2</div>
+                <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                  Put on your headset and enable Oculus Link when prompted
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-green-600 text-white' : 'bg-green-500 text-white'
+                  }`}>3</div>
+                <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                  Open Oculus PC app and ensure your headset is connected
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Method 2: Air Link (Wireless) */}
+          <div className={`rounded-xl p-4 ${darkMode ? 'bg-gray-800/50' : 'bg-blue-50/50'}`}>
+            <h3 className="text-lg font-semibold mb-3 text-blue-400 flex items-center gap-2">
+              <Wifi size={20} />
+              Method 2: Air Link (Wireless)
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  }`}>1</div>
+                <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                  Ensure your PC and Quest are on the same 5GHz Wi-Fi network
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  }`}>2</div>
+                <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                  In your Quest headset, go to Settings → Experimental Features → Air Link
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-1 ${darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                  }`}>3</div>
+                <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+                  Enable Air Link and connect to your PC
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Requirements */}
+          <div className={`rounded-xl p-4 ${darkMode ? 'bg-gray-800/50' : 'bg-orange-50/50'}`}>
+            <h3 className="text-lg font-semibold mb-3 text-orange-400 flex items-center gap-2">
+              <Monitor size={20} />
+              System Requirements
+            </h3>
+            <ul className={`space-y-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <li>• Oculus Quest 2/3/Pro headset</li>
+              <li>• Oculus PC app installed</li>
+              <li>• VR-ready GPU (NVIDIA GTX 1060 / AMD RX 480 or better)</li>
+              <li>• Windows 10/11</li>
+              <li>• USB 3.0 port (for wired connection)</li>
+              <li>• 5GHz Wi-Fi (for wireless connection)</li>
+            </ul>
+          </div>
+
+          {/* Experience Info */}
+          <div className={`rounded-xl p-4 ${darkMode ? 'bg-purple-900/30' : 'bg-purple-100/50'}`}>
+            <h3 className="text-lg font-semibold mb-3 text-purple-400 flex items-center gap-2">
+              <ExternalLink size={20} />
+              What to Expect
+            </h3>
+            <ul className={`space-y-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <li>• You'll be redirected to an optimized VR experience</li>
+              <li>• The simulation will open in a new browser tab</li>
+              <li>• Return to this tab when you're finished</li>
+              <li>• Your session will be automatically saved</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-6 border-t border-purple-500/30">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className={`px-6 py-3 rounded-lg font-semibold transition-all backdrop-blur-xl ${darkMode
+              ? 'bg-gray-700/80 hover:bg-gray-600/80 border border-gray-600/30 text-gray-300'
+              : 'bg-gray-300/80 hover:bg-gray-400/80 border border-gray-400/30 text-gray-700'
+              } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onRedirect}
+            disabled={loading}
+            className={`px-6 py-3 rounded-lg font-semibold transition-all flex items-center gap-2 backdrop-blur-xl ${loading
+              ? 'bg-gray-500/80 cursor-not-allowed'
+              : darkMode
+                ? 'bg-green-600/80 hover:bg-green-700/80 border border-green-500/30 text-white'
+                : 'bg-green-500/80 hover:bg-green-600/80 border border-green-400/30 text-white'
+              }`}
+          >
+            {loading ? (
+              <>
+                <Loader className="animate-spin" size={18} />
+                Preparing...
+              </>
+            ) : (
+              <>
+                <Play size={18} />
+                Launch Unity VR
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function UserDashboard() {
   const navigate = useNavigate();
   const { darkMode, toggleDarkMode } = useTheme();
@@ -248,13 +682,181 @@ export default function UserDashboard() {
   });
   const [loading, setLoading] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
-
+  const [launchingBuild, setLaunchingBuild] = useState(false);
+  const [launchingVR, setLaunchingVR] = useState(false);
+  const [showRedirectOverlay, setShowRedirectOverlay] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const userId = localStorage.getItem("userId");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+  const [showVRGuide, setShowVRGuide] = useState(false);
+  const [pendingVRModel, setPendingVRModel] = useState(null);
+
+  const handleSimulatorVR = async () => {
+    if (!selectedProject?.unityBuildPath) {
+      alert("❌ This simulator doesn't have a Unity build configured for VR.");
+      return;
+    }
+
+    console.log("🚀 Preparing VR Unity build for simulator:", selectedProject.name);
 
 
+    setShowVRGuide(true);
+  };
+
+
+const proceedToVR = async () => {
+  if (!selectedProject?.unityBuildPath) {
+    console.error("❌ No Unity build path found");
+    return;
+  }
+
+  console.log("🎮 Launching Unity VR build for:", selectedProject.name);
+
+  try {
+    setLaunchingVR(true);
+    setShowRedirectOverlay(true);
+    
+    const response = await API.post("/projects/launch-build", {
+      projectId: selectedProject._id,
+      unityBuildPath: selectedProject.unityBuildPath
+    });
+
+    console.log("✅ Backend response:", response.data);
+
+    if (response.data.success) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setShowRedirectOverlay(false);
+      
+      
+    } else {
+      setShowRedirectOverlay(false);
+      alert("❌ Failed to launch VR build: " + response.data.error);
+    }
+  } catch (error) {
+    console.error("❌ Error launching Unity VR build:", error);
+    setShowRedirectOverlay(false);
+    alert("❌ Error: " + error.message);
+  } finally {
+    setLaunchingVR(false);
+    setShowVRGuide(false);
+  }
+};
+
+  const handleVRGuideConfirm = () => {
+    // Close the guide and start the VR process
+    setShowVRGuide(false);
+    proceedToVR();
+  };
+  const handleRedirectCancel = () => {
+    setShowRedirectOverlay(false);
+    setLaunchingVR(false);
+  };
+
+
+  // Handle VR guide close
+  const handleVRGuideClose = () => {
+    setShowVRGuide(false);
+    setPendingVRModel(null);
+  };
+
+
+  const launchVrBuild = async (project) => {
+    try {
+      setLoading(true);
+
+      console.log("🔍 Project data for launch:", {
+        id: project._id,
+        name: project.name,
+        category: project.category,
+        unityBuildPath: project.unityBuildPath,
+        hasUnityBuild: !!project.unityBuildPath
+      });
+
+      // Check if we have the necessary data
+      if (!project.unityBuildPath) {
+        alert("❌ This project doesn't have a Unity build configured");
+        return;
+      }
+
+      const response = await API.post("/projects/launch-build", {
+        projectId: project._id,
+        unityBuildPath: project.unityBuildPath
+      });
+
+      console.log("✅ Backend response:", response.data);
+
+      if (response.data.success) {
+        alert(`🚀 ${project.name} is launching...`);
+      } else {
+        alert("❌ Failed to launch build: " + response.data.error);
+      }
+    } catch (error) {
+      console.error("❌ Error launching Unity build:", error);
+
+      if (error.response) {
+        console.error("Backend error details:", error.response.data);
+        console.error("Backend error status:", error.response.status);
+        alert("❌ Server error: " + (error.response.data.error || error.response.data.message));
+      } else if (error.request) {
+        console.error("No response received:", error.request);
+        alert("❌ Network error: Could not connect to server.");
+      } else {
+        alert("❌ Error: " + error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const launchBuildExecutable = async (project) => {
+    try {
+      setLaunchingBuild(true);
+
+      console.log("🚀 Launching build for project:", {
+        id: project._id,
+        name: project.name,
+        category: project.category,
+        unityBuildPath: project.unityBuildPath,
+        hasUnityBuild: !!project.unityBuildPath
+      });
+
+      // Check if we have the necessary data
+      if (!project.unityBuildPath) {
+        alert("❌ This project doesn't have a Unity build configured");
+        return;
+      }
+
+      const response = await API.post("/projects/launch-build", {
+        projectId: project._id,
+        unityBuildPath: project.unityBuildPath
+      });
+
+      console.log("✅ Backend response:", response.data);
+
+      if (response.data.success) {
+
+      } else {
+        alert("❌ Failed to launch build: " + response.data.error);
+      }
+    } catch (error) {
+      console.error("❌ Error launching build:", error);
+
+      if (error.response) {
+        console.error("Backend error details:", error.response.data);
+        console.error("Backend error status:", error.response.status);
+        alert("❌ Server error: " + (error.response.data.error || error.response.data.message));
+      } else if (error.request) {
+        console.error("No response received:", error.request);
+        alert("❌ Network error: Could not connect to server.");
+      } else {
+        alert("❌ Error: " + error.message);
+      }
+    } finally {
+      setLaunchingBuild(false);
+    }
+  };
 
   const filteredProjects = useMemo(
     () =>
@@ -338,6 +940,23 @@ export default function UserDashboard() {
     }
   }, [projects]);
 
+
+ useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible' && showRedirectOverlay) {
+      // User returned to this tab - close the redirect overlay
+      console.log("🔙 User returned to main tab - closing redirect overlay");
+      setShowRedirectOverlay(false);
+      setLaunchingVR(false);
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  return () => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}, [showRedirectOverlay]);
 
 
   const fetchNotifications = async () => {
@@ -640,8 +1259,8 @@ export default function UserDashboard() {
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                   className={`rounded-xl px-3 py-3 text-sm backdrop-blur-xl border shadow-lg ${darkMode
-                      ? 'bg-[#020617] border-white/20 text-white'
-                      : 'bg-white/70 border-black/10 text-gray-900'
+                    ? 'bg-[#020617] border-white/20 text-white'
+                    : 'bg-white/70 border-black/10 text-gray-900'
                     }`}
                 >
                   <option value="all" className={darkMode ? 'bg-[#020617] text-white' : ''}>All Categories</option>
@@ -729,25 +1348,6 @@ export default function UserDashboard() {
               {/* Background with blurred model preview */}
               {selectedProject.modelFileId && (
                 <div className="fixed inset-0 z-0 opacity-30">
-                  {/* <div className="w-full h-full flex items-center justify-center">
-      <model-viewer
-        src={`http://localhost:5000/api/projects/file/${selectedProject.modelFileId}`}
-        alt={selectedProject.name}
-        camera-controls
-        auto-rotate
-        camera-orbit="0deg 75deg 3m"
-        interaction-prompt="none"
-        style={{
-          width: '100vw',
-        height: '100vh',
-          maxWidth: '1200px',
-          maxHeight: '800px',
-
-          objectFit: 'cover',
-        }}
-        loading="eager"
-      ></model-viewer>
-    </div> */}
                   <div className={`absolute inset-0 ${darkMode ? 'bg-black/20' : 'bg-white/15'}`} />
                 </div>
               )}
@@ -765,22 +1365,74 @@ export default function UserDashboard() {
                       <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                         {selectedProject.name}
                       </h2>
+                      <p className={`text-sm mt-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                        {selectedProject.description}
+                      </p>
                     </div>
-                    <div
-                      className={`px-3 py-1 rounded-full text-sm font-semibold backdrop-blur-md ${darkMode
-                        ? "bg-purple-900/50 text-purple-300"
-                        : "bg-purple-100/50 text-purple-700"
-                        }`}
-                    >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`px-3 py-1 rounded-full text-sm font-semibold backdrop-blur-md ${darkMode
+                          ? "bg-purple-900/50 text-purple-300"
+                          : "bg-purple-100/50 text-purple-700"
+                          }`}
+                      >
+                        {selectedProject.category}
+                      </div>
 
+                      {/* Launch Build Button for Simulators */}
+
+                      {selectedProject.category === "simulators" && selectedProject.unityBuildPath && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => launchBuildExecutable(selectedProject)}
+                            disabled={launchingBuild}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 backdrop-blur-xl shadow-lg ${launchingBuild
+                              ? "bg-gray-500/80 cursor-not-allowed"
+                              : darkMode
+                                ? "bg-blue-600/80 hover:bg-blue-700/80 border border-blue-500/30"
+                                : "bg-blue-500/80 hover:bg-blue-600/80 border border-blue-400/30"
+                              } text-white`}
+                          >
+                            {launchingBuild ? (
+                              <>
+                                <Loader className="animate-spin" size={18} />
+                                Launching...
+                              </>
+                            ) : (
+                              <>
+                                <Monitor size={18} />
+                                Launch Build
+                              </>
+                            )}
+                          </button>
+
+                          {/* Add this View in VR button */}
+                          <button
+                            onClick={handleSimulatorVR}
+                            disabled={launchingVR}
+                            className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 backdrop-blur-xl shadow-lg ${launchingVR
+                              ? "bg-gray-500/80 cursor-not-allowed"
+                              : darkMode
+                                ? "bg-green-600/80 hover:bg-green-700/80 border border-green-500/30"
+                                : "bg-green-500/80 hover:bg-green-600/80 border border-green-400/30"
+                              } text-white`}
+                          >
+                            {launchingVR ? (
+                              <>
+                                <Loader className="animate-spin" size={18} />
+                                Launching...
+                              </>
+                            ) : (
+                              <>
+                                <Play size={18} />
+                                View in VR
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <p
-                    className={`text-sm leading-relaxed ${darkMode ? "text-gray-300" : "text-gray-700"
-                      }`}
-                  >
-                    {selectedProject.description}
-                  </p>
                 </div>
 
                 {/* 3D Models Grid */}
@@ -804,7 +1456,6 @@ export default function UserDashboard() {
                       />
                     );
                   })()}
-
 
                   {selectedProject.modelFileId && (
                     <ModelCard
@@ -832,7 +1483,21 @@ export default function UserDashboard() {
                     />
                   ))}
                 </div>
-
+                {showRedirectOverlay && (
+                  <RedirectOverlay
+                    darkMode={darkMode}
+                    onClose={handleRedirectCancel}
+                  />
+                )}
+                {showVRGuide && (
+                  <VRConnectionGuide
+                    darkMode={darkMode}
+                    onClose={handleVRGuideClose}
+                    onConfirm={handleVRGuideConfirm}
+                    onRedirect={handleVRGuideConfirm} // Use the same handler for both buttons
+                    loading={launchingVR}
+                  />
+                )}
                 {/* Empty State */}
                 {!selectedProject.modelFileId &&
                   (!selectedProject.subModels ||
@@ -896,7 +1561,6 @@ export default function UserDashboard() {
                               src={`http://localhost:5000/api/projects/file/${project.modelFileId}`}
                               alt={project.name}
                               camera-controls
-
                               camera-orbit="0deg 75deg 2.5m"
                               interaction-prompt="none"
                               style={{
@@ -930,7 +1594,22 @@ export default function UserDashboard() {
                         </p>
 
                         {/* Project Stats */}
-
+                        <div className="flex items-center justify-between mb-4">
+                          <div className={`px-2 py-1 rounded-full text-xs font-semibold backdrop-blur-md ${darkMode
+                            ? project.category === "simulators"
+                              ? "bg-green-900/50 text-green-300"
+                              : "bg-purple-900/50 text-purple-300"
+                            : project.category === "simulators"
+                              ? "bg-green-100/50 text-green-700"
+                              : "bg-purple-100/50 text-purple-700"
+                            }`}
+                          >
+                            {project.category}
+                          </div>
+                          <div className={`px-2 py-1 rounded-full text-xs font-semibold backdrop-blur-md ${darkMode ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100/50 text-blue-700'}`}>
+                            {project.subModels?.length || 0} models
+                          </div>
+                        </div>
 
                         {/* Buttons */}
                         <div className="flex gap-2">
@@ -946,8 +1625,6 @@ export default function UserDashboard() {
                           >
                             View Details
                           </button>
-
-
                         </div>
                       </div>
                     ))}
@@ -983,6 +1660,9 @@ export default function UserDashboard() {
           )}
         </main>
       </div>
+
+
+
 
       {restoringFromVR && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
