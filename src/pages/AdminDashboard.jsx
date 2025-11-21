@@ -38,9 +38,8 @@ export default function AdminDashboard() {
   const [viewImage, setViewImage] = useState(null);
   const [category, setCategory] = useState("");
   const [unityBuild, setUnityBuild] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState({});
-  const [isUploading, setIsUploading] = useState(false);
 
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -58,7 +57,7 @@ export default function AdminDashboard() {
   const [subBuilds, setSubBuilds] = useState([]);
   const [mainBuildZip, setMainBuildZip] = useState(null);
   const [subBuildZips, setSubBuildZips] = useState([]);
-
+  const [isUploading, setIsUploading] = useState(false);
   // Calculate current help requests for this page
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
@@ -144,85 +143,110 @@ export default function AdminDashboard() {
     });
   };
 
-const resetForm = () => {
-  try {
-    console.log("🔄 Resetting form...");
-    
-    // Basic project info
-    setProjectName("");
-    setProjectDesc("");
-    setModelName("");
-    setCategory("");
-    
-    // File inputs
-    setModelFile(null);
-    setMainBuildZip(null);
-    setUnityBuild(null);
-    
-    // Build configurations
-    setMainBuild({
-      name: "Main Build",
-      description: "Primary build for this project"
-    });
-    
-    // Clear all sub-builds
-    setSubBuilds([]);
-    
-    // Reset submodels to initial state (one empty submodel)
-    setSubModels([{ name: "", description: "", file: null }]);
-    
-    // Clear upload progress
-    setUploadProgress({});
-    
-    // Clear any file input DOM elements
-    const fileInputs = document.querySelectorAll('input[type="file"]');
-    fileInputs.forEach(input => {
-      input.value = '';
-    });
-    
-    console.log("✅ Form completely reset");
-    
-  } catch (error) {
-    console.error("❌ Error resetting form:", error);
-  }
-};
- // Enhanced handleAddProject function
+  const resetForm = () => {
+    try {
+      console.log("🔄 Resetting form...");
+
+      // Basic project info
+      setProjectName("");
+      setProjectDesc("");
+      setModelName("");
+      setCategory("");
+
+      // File inputs
+      setModelFile(null);
+      setMainBuildZip(null);
+      setUnityBuild(null);
+
+      // Build configurations
+      setMainBuild({
+        name: "Main Build",
+        description: "Primary build for this project"
+      });
+
+      // Clear all sub-builds
+      setSubBuilds([]);
+
+      // Reset submodels to initial state (one empty submodel)
+      setSubModels([{ name: "", description: "", file: null }]);
+
+      // Clear upload progress
+      setUploadProgress({});
+
+      // Clear any file input DOM elements
+      const fileInputs = document.querySelectorAll('input[type="file"]');
+      fileInputs.forEach(input => {
+        input.value = '';
+      });
+
+      console.log("✅ Form completely reset");
+
+    } catch (error) {
+      console.error("❌ Error resetting form:", error);
+    }
+  };
+  // Enhanced handleAddProject function
 const handleAddProject = async (e) => {
   e.preventDefault();
   try {
     setIsUploading(true);
-    
-    const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
-    const chunkedFiles = [];
+    setUploadProgress(0);
 
-    // Upload large files as chunks
+    const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024;
+    const chunkedFiles = [];
+    let totalProgress = 0;
+
+    // Phase 1: Upload large files as chunks (40% of total progress)
     if (mainBuildZip && mainBuildZip.size > LARGE_FILE_THRESHOLD) {
       console.log("📦 Uploading main build as chunks...");
-      const chunkInfo = await uploadFileInChunks(mainBuildZip, "mainBuildZip");
+      const chunkInfo = await uploadFileInChunks(mainBuildZip, "mainBuildZip", (progress) => {
+        // Main build takes 40% of total progress
+        const newProgress = progress * 0.4;
+        setUploadProgress(newProgress);
+        totalProgress = newProgress;
+      });
       chunkedFiles.push(chunkInfo);
+    } else if (mainBuildZip) {
+      // Small main build file - mark as 40% complete immediately
+      totalProgress += 40;
+      setUploadProgress(totalProgress);
     }
 
-    // Upload large sub-builds as chunks
-    for (let i = 0; i < subBuilds.length; i++) {
-      if (subBuilds[i].file && subBuilds[i].file.size > LARGE_FILE_THRESHOLD) {
+    // Phase 2: Upload large sub-builds as chunks (30% of total progress)
+    const subBuildsToUpload = subBuilds.filter(build => build.file && build.file.size > LARGE_FILE_THRESHOLD);
+    
+    if (subBuildsToUpload.length > 0) {
+      for (let i = 0; i < subBuildsToUpload.length; i++) {
         console.log(`📦 Uploading sub-build ${i} as chunks...`);
-        const chunkInfo = await uploadFileInChunks(subBuilds[i].file, `subBuildZips_${i}`);
+        const chunkInfo = await uploadFileInChunks(
+          subBuildsToUpload[i].file,
+          `subBuildZips_${i}`,
+          (progress) => {
+            // Each sub-build gets equal share of the 30%
+            const subBuildProgress = (progress * 0.3) / subBuildsToUpload.length;
+            setUploadProgress(totalProgress + subBuildProgress);
+          }
+        );
         chunkedFiles.push(chunkInfo);
       }
+    } else if (subBuilds.some(build => build.file)) {
+      // Small sub-build files - mark as 30% complete immediately
+      totalProgress += 30;
+      setUploadProgress(totalProgress);
     }
 
     // 🟢 PREPARE FORM DATA WITH ALL REQUIRED FIELDS
     const formData = new FormData();
-    
+
     // Basic project info
     formData.append("name", projectName);
     formData.append("description", projectDesc);
     formData.append("modelName", modelName);
     formData.append("category", category);
-    
+
     // Build configurations
     formData.append("mainBuild", JSON.stringify(mainBuild));
-    
+
     // Sub-builds configuration
     if (subBuilds.length > 0) {
       const subBuildsToSend = subBuilds.map(build => ({
@@ -248,7 +272,7 @@ const handleAddProject = async (e) => {
     formData.append("subModels", JSON.stringify(subModelsData));
 
     // 🟢 ADD FILES - Handle both chunked and direct uploads
-    
+
     // Main build zip (if not chunked or small file)
     if (mainBuildZip && mainBuildZip.size <= LARGE_FILE_THRESHOLD) {
       formData.append("mainBuildZip", mainBuildZip);
@@ -277,137 +301,70 @@ const handleAddProject = async (e) => {
       }
     });
 
-    // 🟢 DEBUG: Log what's being sent
-    console.log("📤 FINAL FORM DATA CONTENTS:");
-    for (let [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`  ${key}: File - ${value.name} (${value.size} bytes)`);
-      } else {
-        console.log(`  ${key}:`, value);
-      }
-    }
-
     const token = localStorage.getItem("token");
     console.log("🚀 Sending project creation request...");
 
+    // If no chunk uploads happened, set base progress to 70%
+    if (totalProgress < 70) {
+      setUploadProgress(70);
+      totalProgress = 70;
+    }
+
+    // Phase 3: Final form submission (30% of total progress)
     const response = await API.post("/projects/create", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
         "Authorization": `Bearer ${token}`
       },
-      timeout: 600000, // 10 minutes
+      timeout: 600000,
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const finalPhaseProgress = (progressEvent.loaded / progressEvent.total) * 30;
+          setUploadProgress(70 + finalPhaseProgress);
+        }
+      }
     });
 
+    // Set to 100% when complete
+    setUploadProgress(100);
     console.log("✅ Project creation successful:", response.data);
-    alert("Project created successfully!");
-    
+
+    // Small delay to show 100% completion
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    toast.success("Project created successfully!");
+
     // Reset form and close modal
     setShowCreateModal(false);
     resetForm();
+    setUploadProgress(0);
     await fetchProjects();
 
   } catch (error) {
     console.error("❌ Project creation failed:", error);
-    
-    // 🟢 BETTER ERROR HANDLING
+    setUploadProgress(0);
+
     if (error.response) {
-      // Server responded with error status
       console.error("Server response error:", error.response.data);
-      alert(`Error: ${error.response.data.error || error.response.statusText}`);
+      toast.error(`Error: ${error.response.data.error || error.response.statusText}`);
     } else if (error.request) {
-      // Request was made but no response received
       console.error("No response received:", error.request);
-      alert("Network error: No response from server");
+      toast.error("Network error: No response from server");
     } else {
-      // Something else happened
       console.error("Error:", error.message);
-      alert(`Error: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     }
   } finally {
     setIsUploading(false);
   }
 };
 
-// Chunked upload implementation
-const uploadWithChunking = async (e) => {
-  const CHUNK_SIZE = 100 * 1024 * 1024; // 100MB chunks
-  
-  const formData = new FormData();
-  formData.append("name", projectName);
-  formData.append("description", projectDesc);
-  formData.append("modelName", modelName);
-  formData.append("category", category);
-  formData.append("mainBuild", JSON.stringify(mainBuild));
 
-  // Add sub-builds configuration
-  if (subBuilds.length > 0) {
-    const subBuildsToSend = subBuilds.map(build => ({
-      name: build.name,
-      description: build.description
-    }));
-    formData.append("subBuilds", JSON.stringify(subBuildsToSend));
-  }
-
-  // Handle submodels
-  const subModelsData = subModels
-    .filter((s) => (s.name || "").trim() !== "")
-    .map((s) => ({
-      name: s.name,
-      description: s.description,
-    }));
-  formData.append("subModels", JSON.stringify(subModelsData));
-
-  // Upload small files directly
-  formData.append("modelFile", modelFile);
-  
-  // For large build files, use chunked upload
-  if (mainBuildZip.size > CHUNK_SIZE) {
-    await uploadFileInChunks(mainBuildZip, "mainBuildZip", formData);
-  } else {
-    formData.append("mainBuildZip", mainBuildZip);
-  }
-
-  // Upload sub-builds
-  for (let i = 0; i < subBuilds.length; i++) {
-    if (subBuilds[i].file) {
-      if (subBuilds[i].file.size > CHUNK_SIZE) {
-        await uploadFileInChunks(subBuilds[i].file, `subBuildZips_${i}`, formData);
-      } else {
-        formData.append("subBuildZips", subBuilds[i].file);
-      }
-    }
-  }
-
-  // Upload submodel files
-  subModels.forEach((s) => {
-    if (s.file) formData.append("subModelFiles", s.file);
-  });
-
-  const token = localStorage.getItem("token");
-
-  console.log("🚀 Starting optimized upload...");
-  
-  const response = await API.post("/projects/create", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-      "Authorization": `Bearer ${token}`
-    },
-    timeout: 600000, // 10 minute timeout
-  });
-
-  console.log("✅ Project creation successful:", response.data);
-  alert("Project created successfully");
-  setShowCreateModal(false);
-  resetForm();
-  await fetchProjects();
-};
-
-// Chunked file upload
-// In your AdminDashboard.jsx
-const uploadFileInChunks = async (file, fileKey) => {
-  const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
+  // In your AdminDashboard.jsx
+const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
+  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-  let uploadId = null;
+  const uploadId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   console.log(`📦 Uploading ${file.name} in ${totalChunks} chunks`);
 
@@ -417,34 +374,39 @@ const uploadFileInChunks = async (file, fileKey) => {
     const chunk = file.slice(start, end);
 
     const chunkFormData = new FormData();
-    chunkFormData.append('chunk', chunk);
-    chunkFormData.append('chunkIndex', chunkIndex);
-    chunkFormData.append('totalChunks', totalChunks);
-    chunkFormData.append('fileKey', fileKey);
-    chunkFormData.append('originalName', file.name);
-    chunkFormData.append('fileSize', file.size);
-    if (uploadId) chunkFormData.append('uploadId', uploadId);
+    chunkFormData.append("chunk", chunk);
+    chunkFormData.append("chunkIndex", chunkIndex);
+    chunkFormData.append("totalChunks", totalChunks);
+    chunkFormData.append("fileKey", fileKey);
+    chunkFormData.append("originalName", file.name);
+    chunkFormData.append("fileSize", file.size);
+    chunkFormData.append("uploadId", uploadId);
 
     try {
-      // ✅ Make sure this URL is correct
-      const response = await API.post('/upload/chunk', chunkFormData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 300000,
+      await API.post("/upload/chunk", chunkFormData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
 
-      if (response.data.uploadId) {
-        uploadId = response.data.uploadId;
+      // Update progress for this file
+      const chunkProgress = ((chunkIndex + 1) / totalChunks) * 100;
+      if (onProgress && typeof onProgress === 'function') {
+        onProgress(chunkProgress);
       }
 
-      console.log(`✅ Chunk ${chunkIndex + 1}/${totalChunks} uploaded`);
-
+      console.log(`✅ Uploaded chunk ${chunkIndex + 1}/${totalChunks} for ${file.name}`);
     } catch (error) {
-      console.error(`❌ Chunk ${chunkIndex + 1} failed:`, error);
-      throw new Error(`Failed to upload chunk ${chunkIndex + 1}: ${error.message}`);
+      console.error(`❌ Failed to upload chunk ${chunkIndex + 1}:`, error);
+      throw new Error(`Chunk upload failed: ${error.message}`);
     }
   }
 
-  return { uploadId, originalName: file.name, fileKey };
+  return {
+    uploadId,
+    fileKey,
+    originalName: file.name
+  };
 };
   // Add sub-build
   const addSubBuild = () => {
@@ -1586,6 +1548,36 @@ const uploadFileInChunks = async (file, fileKey) => {
         </div>
       )}
 
+      {/* Upload Progress Modal */}
+{isUploading && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className={`p-6 rounded-lg w-80 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
+      <h3 className="text-lg font-semibold mb-4 text-center">Creating Project...</h3>
+      
+      {/* Progress Bar */}
+      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 mb-4">
+        <div 
+          className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
+          style={{ width: `${uploadProgress}%` }}
+        ></div>
+      </div>
+      
+      {/* Progress Text */}
+      <div className="flex justify-between text-sm mb-2">
+        <span>Progress:</span>
+        <span className="font-bold">{Math.round(uploadProgress)}%</span>
+      </div>
+      
+      {/* Status Messages */}
+      <div className="text-center text-sm">
+        {uploadProgress < 40 && <span className="text-yellow-500">📦 Uploading build files...</span>}
+        {uploadProgress >= 40 && uploadProgress < 70 && <span className="text-blue-500">🔄 Processing chunks...</span>}
+        {uploadProgress >= 70 && uploadProgress < 100 && <span className="text-purple-500">🚀 Creating project...</span>}
+        {uploadProgress === 100 && <span className="text-green-500">✅ Complete! Closing...</span>}
+      </div>
+    </div>
+  </div>
+)}
 
     </div>
   );
