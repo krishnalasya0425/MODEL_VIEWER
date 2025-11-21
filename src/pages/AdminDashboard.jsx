@@ -37,9 +37,9 @@ export default function AdminDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [viewImage, setViewImage] = useState(null);
   const [category, setCategory] = useState("");
-  const [assignedUser, setAssignedUser] = useState("");
-  const [simulatorType, setSimulatorType] = useState("");
   const [unityBuild, setUnityBuild] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
 
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -50,6 +50,14 @@ export default function AdminDashboard() {
   const itemsPerPage = 10;
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewModel, setPreviewModel] = useState(null); // { url, name, type }
+  // Add these to your existing state variables
+  const [mainBuild, setMainBuild] = useState({
+    name: "Main Build",
+    description: "Primary build for this project"
+  });
+  const [subBuilds, setSubBuilds] = useState([]);
+  const [mainBuildZip, setMainBuildZip] = useState(null);
+  const [subBuildZips, setSubBuildZips] = useState([]);
 
   // Calculate current help requests for this page
   const indexOfLast = currentPage * itemsPerPage;
@@ -65,6 +73,7 @@ export default function AdminDashboard() {
     localStorage.clear();
     navigate("/login");
   };
+
 
   const fetchProjects = async () => {
     try {
@@ -105,58 +114,372 @@ export default function AdminDashboard() {
     };
   }, [previewModel, showPreviewModal]);
 
-  const handleAddProject = async (e) => {
-    e.preventDefault();
-    try {
-      const formData = new FormData();
-      formData.append("name", projectName);
-      formData.append("description", projectDesc);
-      formData.append("modelName", modelName);
-      formData.append("assignedUser", assignedUser);
-      formData.append("category", category);
-      formData.append("simulatorType", simulatorType);
 
-      if (modelFile) formData.append("modelFile", modelFile);
-      if (unityBuild) {
-        formData.append("unityZip", unityBuild);  // only 1 file
+  const compressFile = async (file, options = {}) => {
+    return new Promise((resolve) => {
+      // For zip files, we can't compress further, but we can optimize
+      if (file.name.endsWith('.zip')) {
+        // Just return original for zip files
+        resolve(file);
+        return;
       }
 
+      // For 3D models, we can optimize but not compress much
+      if (file.name.match(/\.(fbx|glb|gltf)$/i)) {
+        resolve(file); // 3D models are already compressed
+        return;
+      }
 
+      // For other files, use browser compression if available
+      if (file.type.startsWith('text/') || file.type === 'application/json') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const compressed = new Blob([e.target.result], { type: file.type });
+          resolve(new File([compressed], file.name, { type: file.type }));
+        };
+        reader.readAsText(file);
+      } else {
+        resolve(file); // Fallback to original
+      }
+    });
+  };
 
+const resetForm = () => {
+  try {
+    console.log("🔄 Resetting form...");
+    
+    // Basic project info
+    setProjectName("");
+    setProjectDesc("");
+    setModelName("");
+    setCategory("");
+    
+    // File inputs
+    setModelFile(null);
+    setMainBuildZip(null);
+    setUnityBuild(null);
+    
+    // Build configurations
+    setMainBuild({
+      name: "Main Build",
+      description: "Primary build for this project"
+    });
+    
+    // Clear all sub-builds
+    setSubBuilds([]);
+    
+    // Reset submodels to initial state (one empty submodel)
+    setSubModels([{ name: "", description: "", file: null }]);
+    
+    // Clear upload progress
+    setUploadProgress({});
+    
+    // Clear any file input DOM elements
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(input => {
+      input.value = '';
+    });
+    
+    console.log("✅ Form completely reset");
+    
+  } catch (error) {
+    console.error("❌ Error resetting form:", error);
+  }
+};
+ // Enhanced handleAddProject function
+const handleAddProject = async (e) => {
+  e.preventDefault();
+  try {
+    setIsUploading(true);
+    
+    const LARGE_FILE_THRESHOLD = 100 * 1024 * 1024; // 100MB
+    const chunkedFiles = [];
 
-      const subModelsData = subModels
-        .filter((s) => (s.name || "").trim() !== "")
-        .map((s) => ({
-          name: s.name,
-          description: s.description,
-        }));
-      formData.append("subModels", JSON.stringify(subModelsData));
-      subModels.forEach((s) => {
-        if (s.file) formData.append("subModelFiles", s.file);
-      });
-
-      const token = localStorage.getItem("token");
-
-      await API.post("http://localhost:5000/api/projects/create", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`  // ✅ Include token
-        },
-      });
-      alert("Project created successfully");
-      setShowCreateModal(false);
-      setProjectName("");
-      setProjectDesc("");
-      setModelName("");
-      setModelFile(null);
-      setSubModels([{ name: "", description: "", file: null }]);
-
-      const projectsRes = await API.get("http://localhost:5000/api/projects");
-      setProjects(projectsRes.data);
-    } catch (err) {
-      console.log(err);
-      alert("Error creating project");
+    // Upload large files as chunks
+    if (mainBuildZip && mainBuildZip.size > LARGE_FILE_THRESHOLD) {
+      console.log("📦 Uploading main build as chunks...");
+      const chunkInfo = await uploadFileInChunks(mainBuildZip, "mainBuildZip");
+      chunkedFiles.push(chunkInfo);
     }
+
+    // Upload large sub-builds as chunks
+    for (let i = 0; i < subBuilds.length; i++) {
+      if (subBuilds[i].file && subBuilds[i].file.size > LARGE_FILE_THRESHOLD) {
+        console.log(`📦 Uploading sub-build ${i} as chunks...`);
+        const chunkInfo = await uploadFileInChunks(subBuilds[i].file, `subBuildZips_${i}`);
+        chunkedFiles.push(chunkInfo);
+      }
+    }
+
+    // 🟢 PREPARE FORM DATA WITH ALL REQUIRED FIELDS
+    const formData = new FormData();
+    
+    // Basic project info
+    formData.append("name", projectName);
+    formData.append("description", projectDesc);
+    formData.append("modelName", modelName);
+    formData.append("category", category);
+    
+    // Build configurations
+    formData.append("mainBuild", JSON.stringify(mainBuild));
+    
+    // Sub-builds configuration
+    if (subBuilds.length > 0) {
+      const subBuildsToSend = subBuilds.map(build => ({
+        name: build.name,
+        description: build.description
+      }));
+      formData.append("subBuilds", JSON.stringify(subBuildsToSend));
+    }
+
+    // Chunked files info
+    if (chunkedFiles.length > 0) {
+      formData.append("chunkedFiles", JSON.stringify(chunkedFiles));
+      console.log("📤 Sending chunked files:", chunkedFiles);
+    }
+
+    // Submodels
+    const subModelsData = subModels
+      .filter((s) => (s.name || "").trim() !== "")
+      .map((s) => ({
+        name: s.name,
+        description: s.description,
+      }));
+    formData.append("subModels", JSON.stringify(subModelsData));
+
+    // 🟢 ADD FILES - Handle both chunked and direct uploads
+    
+    // Main build zip (if not chunked or small file)
+    if (mainBuildZip && mainBuildZip.size <= LARGE_FILE_THRESHOLD) {
+      formData.append("mainBuildZip", mainBuildZip);
+      console.log("📤 Adding main build directly:", mainBuildZip.name);
+    }
+
+    // Sub-build zips (if not chunked or small files)
+    subBuilds.forEach((build, index) => {
+      if (build.file && build.file.size <= LARGE_FILE_THRESHOLD) {
+        formData.append("subBuildZips", build.file);
+        console.log(`📤 Adding sub-build ${index} directly:`, build.file.name);
+      }
+    });
+
+    // Model files
+    if (modelFile) {
+      formData.append("modelFile", modelFile);
+      console.log("📤 Adding model file:", modelFile.name);
+    }
+
+    // Submodel files
+    subModels.forEach((s, index) => {
+      if (s.file) {
+        formData.append("subModelFiles", s.file);
+        console.log(`📤 Adding submodel file ${index}:`, s.file.name);
+      }
+    });
+
+    // 🟢 DEBUG: Log what's being sent
+    console.log("📤 FINAL FORM DATA CONTENTS:");
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: File - ${value.name} (${value.size} bytes)`);
+      } else {
+        console.log(`  ${key}:`, value);
+      }
+    }
+
+    const token = localStorage.getItem("token");
+    console.log("🚀 Sending project creation request...");
+
+    const response = await API.post("/projects/create", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        "Authorization": `Bearer ${token}`
+      },
+      timeout: 600000, // 10 minutes
+    });
+
+    console.log("✅ Project creation successful:", response.data);
+    alert("Project created successfully!");
+    
+    // Reset form and close modal
+    setShowCreateModal(false);
+    resetForm();
+    await fetchProjects();
+
+  } catch (error) {
+    console.error("❌ Project creation failed:", error);
+    
+    // 🟢 BETTER ERROR HANDLING
+    if (error.response) {
+      // Server responded with error status
+      console.error("Server response error:", error.response.data);
+      alert(`Error: ${error.response.data.error || error.response.statusText}`);
+    } else if (error.request) {
+      // Request was made but no response received
+      console.error("No response received:", error.request);
+      alert("Network error: No response from server");
+    } else {
+      // Something else happened
+      console.error("Error:", error.message);
+      alert(`Error: ${error.message}`);
+    }
+  } finally {
+    setIsUploading(false);
+  }
+};
+
+// Chunked upload implementation
+const uploadWithChunking = async (e) => {
+  const CHUNK_SIZE = 100 * 1024 * 1024; // 100MB chunks
+  
+  const formData = new FormData();
+  formData.append("name", projectName);
+  formData.append("description", projectDesc);
+  formData.append("modelName", modelName);
+  formData.append("category", category);
+  formData.append("mainBuild", JSON.stringify(mainBuild));
+
+  // Add sub-builds configuration
+  if (subBuilds.length > 0) {
+    const subBuildsToSend = subBuilds.map(build => ({
+      name: build.name,
+      description: build.description
+    }));
+    formData.append("subBuilds", JSON.stringify(subBuildsToSend));
+  }
+
+  // Handle submodels
+  const subModelsData = subModels
+    .filter((s) => (s.name || "").trim() !== "")
+    .map((s) => ({
+      name: s.name,
+      description: s.description,
+    }));
+  formData.append("subModels", JSON.stringify(subModelsData));
+
+  // Upload small files directly
+  formData.append("modelFile", modelFile);
+  
+  // For large build files, use chunked upload
+  if (mainBuildZip.size > CHUNK_SIZE) {
+    await uploadFileInChunks(mainBuildZip, "mainBuildZip", formData);
+  } else {
+    formData.append("mainBuildZip", mainBuildZip);
+  }
+
+  // Upload sub-builds
+  for (let i = 0; i < subBuilds.length; i++) {
+    if (subBuilds[i].file) {
+      if (subBuilds[i].file.size > CHUNK_SIZE) {
+        await uploadFileInChunks(subBuilds[i].file, `subBuildZips_${i}`, formData);
+      } else {
+        formData.append("subBuildZips", subBuilds[i].file);
+      }
+    }
+  }
+
+  // Upload submodel files
+  subModels.forEach((s) => {
+    if (s.file) formData.append("subModelFiles", s.file);
+  });
+
+  const token = localStorage.getItem("token");
+
+  console.log("🚀 Starting optimized upload...");
+  
+  const response = await API.post("/projects/create", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+      "Authorization": `Bearer ${token}`
+    },
+    timeout: 600000, // 10 minute timeout
+  });
+
+  console.log("✅ Project creation successful:", response.data);
+  alert("Project created successfully");
+  setShowCreateModal(false);
+  resetForm();
+  await fetchProjects();
+};
+
+// Chunked file upload
+// In your AdminDashboard.jsx
+const uploadFileInChunks = async (file, fileKey) => {
+  const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  let uploadId = null;
+
+  console.log(`📦 Uploading ${file.name} in ${totalChunks} chunks`);
+
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    const start = chunkIndex * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const chunk = file.slice(start, end);
+
+    const chunkFormData = new FormData();
+    chunkFormData.append('chunk', chunk);
+    chunkFormData.append('chunkIndex', chunkIndex);
+    chunkFormData.append('totalChunks', totalChunks);
+    chunkFormData.append('fileKey', fileKey);
+    chunkFormData.append('originalName', file.name);
+    chunkFormData.append('fileSize', file.size);
+    if (uploadId) chunkFormData.append('uploadId', uploadId);
+
+    try {
+      // ✅ Make sure this URL is correct
+      const response = await API.post('/upload/chunk', chunkFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000,
+      });
+
+      if (response.data.uploadId) {
+        uploadId = response.data.uploadId;
+      }
+
+      console.log(`✅ Chunk ${chunkIndex + 1}/${totalChunks} uploaded`);
+
+    } catch (error) {
+      console.error(`❌ Chunk ${chunkIndex + 1} failed:`, error);
+      throw new Error(`Failed to upload chunk ${chunkIndex + 1}: ${error.message}`);
+    }
+  }
+
+  return { uploadId, originalName: file.name, fileKey };
+};
+  // Add sub-build
+  const addSubBuild = () => {
+    setSubBuilds([...subBuilds, {
+      name: `Sub Build ${subBuilds.length + 1}`,
+      description: "Additional build variant",
+      file: null
+    }]);
+  };
+
+  // Handle sub-build changes
+  const handleSubBuildChange = (index, field, value) => {
+    const updated = [...subBuilds];
+    updated[index][field] = value;
+    setSubBuilds(updated);
+  };
+
+
+  // Handle sub-build file selection
+  const handleSubBuildFileChange = (index, file) => {
+    const updated = [...subBuilds];
+    updated[index] = {
+      ...updated[index],
+      file: file
+    };
+    setSubBuilds(updated);
+    console.log(`✅ Sub-build ${index + 1} file selected:`, file.name);
+  };
+  // Remove sub-build
+  // Remove sub-build
+  const removeSubBuild = (index) => {
+    const updated = [...subBuilds];
+    updated.splice(index, 1);
+    setSubBuilds(updated);
+    console.log(`🗑️ Removed sub-build ${index + 1}`);
   };
 
   const addSubModelInput = () =>
@@ -689,7 +1012,7 @@ export default function AdminDashboard() {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div
-            className={`p-6 rounded-lg w-[600px] max-h-[90vh] overflow-y-auto ${darkMode ? "bg-[#1E293B] text-white" : "bg-white text-gray-900"
+            className={`p-6 rounded-lg w-[700px] max-h-[90vh] overflow-y-auto ${darkMode ? "bg-[#1E293B] text-white" : "bg-white text-gray-900"
               }`}
           >
             <div className="flex justify-between items-center mb-4">
@@ -700,7 +1023,6 @@ export default function AdminDashboard() {
             </div>
 
             <form onSubmit={handleAddProject} className="flex flex-col gap-3">
-
               {/* Project Name */}
               <input
                 type="text"
@@ -716,12 +1038,11 @@ export default function AdminDashboard() {
               {/* Category */}
               <select
                 value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
-                }}
+                onChange={(e) => setCategory(e.target.value)}
                 className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
                   : "bg-gray-100 text-gray-900 border-gray-300"
                   }`}
+                required
               >
                 <option value="" disabled>Select Category</option>
                 <option value="simulators">Simulators</option>
@@ -740,128 +1061,182 @@ export default function AdminDashboard() {
                   }`}
               />
 
-              {/* ----------------------------------------------------
-        IF CATEGORY = SIMULATORS → SHOW SIMULATOR FIELDS
-      ---------------------------------------------------- */}
-             // In your AdminDashboard component, update the simulator section:
+              {/* 🆕 MAIN BUILD */}
+              <div className={`p-4 rounded border ${darkMode ? "border-blue-600 bg-blue-900/20" : "border-blue-300 bg-blue-50"}`}>
+                <h4 className="text-indigo-400 font-semibold mb-3">Main Build (Required)</h4>
 
-              {category === "simulators" && (
-                <>
-                  {/* Simulator Type */}
-                  <label className="text-indigo-400 font-semibold">Simulator Type</label>
-                  <select
-                    value={simulatorType}
-                    onChange={(e) => setSimulatorType(e.target.value)}
-                    className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
-                      : "bg-gray-100 text-gray-900 border-gray-300"
-                      }`}
-                    required
-                  >
-                    <option value="" disabled>Select Simulator Type</option>
-                    <option value="welding-simulator">Welding Simulator</option>
-                    <option value="driving-simulator">Driving Simulator</option>
-                  </select>
-
-                  {/* Unity Build Upload */}
-                  <label className="text-indigo-400 font-semibold mt-2">
-                    Upload Unity Build Folder (.zip)
-                  </label>
-                  <input
-                    type="file"
-                    accept=".zip"
-                    onChange={(e) => setUnityBuild(e.target.files[0])}
-                    required
-                  />
-
-                  <div className={`p-3 rounded border ${darkMode ? "bg-blue-900/20 border-blue-600" : "bg-blue-50 border-blue-200"}`}>
-                    <p className="text-blue-600 text-sm">
-                      💡 Upload your Unity build folder as a .zip file containing the .exe and all necessary files
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {/* ----------------------------------------------------
-        IF CATEGORY != SIMULATORS → SHOW 3D MODEL FIELDS
-      ---------------------------------------------------- */}
-              {category !== "simulators" && (
-                <>
-                  {/* Main Model Name */}
+                <div className="flex gap-2 mb-3">
                   <input
                     type="text"
-                    placeholder="Main Model Name"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                    placeholder="Build Name"
+                    value={mainBuild.name}
+                    onChange={(e) => setMainBuild({ ...mainBuild, name: e.target.value })}
+                    className={`p-2 rounded border flex-1 ${darkMode ? "bg-gray-800 text-white border-gray-600"
                       : "bg-gray-100 text-gray-900 border-gray-300"
                       }`}
                   />
-
-                  {/* Main File */}
-                  <label className="text-sm font-semibold text-indigo-400">
-                    Main Model File
-                  </label>
                   <input
-                    type="file"
-                    accept=".fbx,.glb"
-                    onChange={(e) => setModelFile(e.target.files[0])}
-                    className="text-gray-300"
+                    type="text"
+                    placeholder="Build Description"
+                    value={mainBuild.description}
+                    onChange={(e) => setMainBuild({ ...mainBuild, description: e.target.value })}
+                    className={`p-2 rounded border flex-1 ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                      : "bg-gray-100 text-gray-900 border-gray-300"
+                      }`}
                   />
+                </div>
 
-                  {/* Sub Models */}
-                  <h4 className="text-indigo-400 mt-2 font-semibold">Sub Models</h4>
-                  {subModels.map((s, i) => (
-                    <div key={i}
-                      className={`flex flex-col gap-2 p-3 rounded border ${darkMode ? "border-gray-600"
-                        : "border-gray-300"
-                        }`}
-                    >
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="Submodel Name"
-                          value={s.name}
-                          onChange={(e) => handleSubModelChange(i, "name", e.target.value)}
-                          className={`p-2 rounded border w-1/2 ${darkMode ? "bg-gray-800 text-white border-gray-600"
-                            : "bg-gray-100 text-gray-900 border-gray-300"
-                            }`}
-                        />
+                <label className="text-sm font-semibold text-indigo-400">
+                  Upload Main Build (.zip)
+                </label>
+                <input
+                  type="file"
+                  accept=".zip"
+                  onChange={(e) => setMainBuildZip(e.target.files[0])}
+                  required
+                  className="text-gray-300 w-full mt-1"
+                />
+              </div>
 
-                        <input
-                          type="text"
-                          placeholder="Description"
-                          value={s.description}
-                          onChange={(e) =>
-                            handleSubModelChange(i, "description", e.target.value)
-                          }
-                          className={`p-2 rounded border w-1/2 ${darkMode ? "bg-gray-800 text-white border-gray-600"
-                            : "bg-gray-100 text-gray-900 border-gray-300"
-                            }`}
-                        />
-                      </div>
-
-                      <input
-                        type="file"
-                        accept=".fbx,.glb"
-                        onChange={(e) =>
-                          handleSubModelChange(i, "file", e.target.files[0])
-                        }
-                        className="text-gray-300"
-                      />
-                    </div>
-                  ))}
-
+              {/* 🆕 SUB-BUILDS */}
+              <div className={`p-4 rounded border ${darkMode ? "border-green-600 bg-green-900/20" : "border-green-300 bg-green-50"}`}>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-indigo-400 font-semibold">Additional Builds (Optional)</h4>
                   <button
                     type="button"
-                    onClick={addSubModelInput}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded mt-2"
+                    onClick={addSubBuild}
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
                   >
-                    + Add Submodel
+                    + Add Build
                   </button>
-                </>
-              )}
+                </div>
 
-              {/* Footer buttons */}
+                {subBuilds.map((build, index) => (
+                  <div key={index} className={`p-3 rounded border mb-2 ${darkMode ? "border-gray-600 bg-gray-800" : "border-gray-300 bg-gray-100"}`}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-indigo-400">Build #{index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeSubBuild(index)}
+                        className="text-red-500 hover:text-red-400"
+                      >
+                        <Trash size={16} />
+                      </button>
+                    </div>
+
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        placeholder="Build Name"
+                        value={build.name}
+                        onChange={(e) => handleSubBuildChange(index, "name", e.target.value)}
+                        className={`p-2 rounded border flex-1 ${darkMode ? "bg-gray-700 text-white border-gray-600"
+                          : "bg-white text-gray-900 border-gray-300"
+                          }`}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Build Description"
+                        value={build.description}
+                        onChange={(e) => handleSubBuildChange(index, "description", e.target.value)}
+                        className={`p-2 rounded border flex-1 ${darkMode ? "bg-gray-700 text-white border-gray-600"
+                          : "bg-white text-gray-900 border-gray-300"
+                          }`}
+                      />
+                    </div>
+
+                    <input
+                      type="file"
+                      accept=".zip"
+                      onChange={(e) => handleSubBuildFileChange(index, e.target.files[0])}
+                      className="text-gray-300 w-full"
+                    />
+                  </div>
+                ))}
+
+                {subBuilds.length === 0 && (
+                  <p className="text-sm text-gray-400 text-center">No additional builds added</p>
+                )}
+              </div>
+
+              {/* MAIN MODEL */}
+              <label className="text-indigo-400 font-semibold mt-2">
+                Main Model Name
+              </label>
+              <input
+                type="text"
+                placeholder="Main Model Name"
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
+                className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                  : "bg-gray-100 text-gray-900 border-gray-300"
+                  }`}
+                required
+              />
+
+              <label className="text-sm font-semibold text-indigo-400">
+                Main Model File - Required
+              </label>
+              <input
+                type="file"
+                accept=".fbx,.glb,.gltf"
+                onChange={(e) => setModelFile(e.target.files[0])}
+                required
+                className="text-gray-300"
+              />
+
+              {/* SUB MODELS */}
+              <h4 className="text-indigo-400 mt-2 font-semibold">Sub Models (Optional)</h4>
+              {subModels.map((s, i) => (
+                <div key={i}
+                  className={`flex flex-col gap-2 p-3 rounded border ${darkMode ? "border-gray-600"
+                    : "border-gray-300"
+                    }`}
+                >
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Submodel Name"
+                      value={s.name}
+                      onChange={(e) => handleSubModelChange(i, "name", e.target.value)}
+                      className={`p-2 rounded border w-1/2 ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                        : "bg-gray-100 text-gray-900 border-gray-300"
+                        }`}
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Description"
+                      value={s.description}
+                      onChange={(e) =>
+                        handleSubModelChange(i, "description", e.target.value)
+                      }
+                      className={`p-2 rounded border w-1/2 ${darkMode ? "bg-gray-800 text-white border-gray-600"
+                        : "bg-gray-100 text-gray-900 border-gray-300"
+                        }`}
+                    />
+                  </div>
+
+                  <input
+                    type="file"
+                    accept=".fbx,.glb,.gltf"
+                    onChange={(e) =>
+                      handleSubModelChange(i, "file", e.target.files[0])
+                    }
+                    className="text-gray-300"
+                  />
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addSubModelInput}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded mt-2"
+              >
+                + Add Submodel
+              </button>
+
+              {/* Submit Buttons */}
               <div className="flex justify-end gap-2 mt-4">
                 <button
                   type="button"
@@ -887,13 +1262,10 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
-
           </div>
         </div>
       )}
 
-
-      {/* ✅ Info Modal */}
       {showInfoModal && selectedProject && (
         <div className="fixed inset-0 backdrop-blur-sm bg-black/40 flex items-center justify-center z-50">
           <div
@@ -935,7 +1307,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-      {/* ✅ Preview Modal (before creating project) */}
+
       {showPreviewModal && (
         <div className="fixed inset-0 backdrop-blur-sm bg-black/60 flex items-center justify-center z-50">
           <div
@@ -954,12 +1326,12 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* Details list */}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <h4 className="font-semibold mb-2">Files Selected</h4>
                 <ul className="space-y-2 text-sm">
-                  {/* Main model */}
+
                   {modelFile ? (
                     <li className={`p-3 rounded border ${darkMode ? "border-white/10 bg-white/5" : "border-black/10 bg-gray-50"}`}>
                       <div className="flex items-start justify-between gap-3">
@@ -985,7 +1357,7 @@ export default function AdminDashboard() {
                     <li className="text-xs opacity-70">No main model selected</li>
                   )}
 
-                  {/* Submodels */}
+
                   {subModels && subModels.length > 0 && subModels.map((s, i) => (
                     <li key={i} className={`p-3 rounded border ${darkMode ? "border-white/10 bg-white/5" : "border-black/10 bg-gray-50"}`}>
                       <div className="flex items-start justify-between gap-3">
@@ -1019,7 +1391,7 @@ export default function AdminDashboard() {
                 </ul>
               </div>
 
-              {/* Viewer */}
+
               <div className={`rounded border h-[60vh] ${darkMode ? 'border-white/10 bg-black/30' : 'border-black/10 bg-gray-100'}`}>
                 {!previewModel ? (
                   <div className="w-full h-full flex items-center justify-center text-sm opacity-70">
@@ -1050,7 +1422,7 @@ export default function AdminDashboard() {
             className={`p-6 rounded-lg w-[600px] max-h-[90vh] overflow-y-auto ${darkMode ? "bg-[#1E293B] text-white" : "bg-white text-gray-900"
               }`}
           >
-            {/* Header */}
+
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-indigo-400">Update Project</h3>
               <button onClick={() => setShowUpdateModal(false)}>
@@ -1058,10 +1430,10 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* Form */}
+
             <form onSubmit={handleUpdateProject} className="flex flex-col gap-3">
 
-              {/* Project Name */}
+
               <input
                 type="text"
                 placeholder="Project Name"
@@ -1074,7 +1446,7 @@ export default function AdminDashboard() {
                 required
               />
 
-              {/* Description */}
+
               <textarea
                 placeholder="Description"
                 value={projectDesc}
@@ -1086,7 +1458,7 @@ export default function AdminDashboard() {
                   }`}
               />
 
-              {/* Model Name */}
+
               <input
                 type="text"
                 placeholder="Main Model Name"
@@ -1098,7 +1470,7 @@ export default function AdminDashboard() {
                   }`}
               />
 
-              {/* Main Model File */}
+
               <label className="text-sm font-semibold text-indigo-400">Main Model File</label>
               <div className="flex flex-col gap-2">
                 <p className="text-sm text-gray-400">
@@ -1124,7 +1496,7 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              {/* Submodels */}
+
               <h4 className="text-indigo-400 mt-2 font-semibold">Sub Models</h4>
               {subModels.map((s, i) => (
                 <div
@@ -1157,7 +1529,7 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  {/* Existing File */}
+
                   {s.fileName && (
                     <p className="text-sm text-gray-400">
                       <strong>Existing File:</strong>{" "}
@@ -1172,7 +1544,7 @@ export default function AdminDashboard() {
                     </p>
                   )}
 
-                  {/* Upload New File */}
+
                   <input
                     type="file"
                     accept=".fbx,.glb"
@@ -1184,7 +1556,7 @@ export default function AdminDashboard() {
                 </div>
               ))}
 
-              {/* Add Submodel */}
+
               <button
                 type="button"
                 onClick={addSubModelInput}
@@ -1193,7 +1565,7 @@ export default function AdminDashboard() {
                 + Add Submodel
               </button>
 
-              {/* Buttons */}
+
               <div className="flex justify-end gap-2 mt-4">
                 <button
                   type="button"

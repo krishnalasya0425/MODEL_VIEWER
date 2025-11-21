@@ -692,63 +692,100 @@ export default function UserDashboard() {
   const itemsPerPage = 8;
   const [showVRGuide, setShowVRGuide] = useState(false);
   const [pendingVRModel, setPendingVRModel] = useState(null);
+  const [launchingBuilds, setLaunchingBuilds] = useState({});
+  const [launchingVRBuilds, setLaunchingVRBuilds] = useState({});
+  const handleProjectVR = async (project, build = null) => {
+    // If no specific build provided, use the main build
+    const targetBuild = build || project.builds?.find(b => b.isMain);
+    const buildId = targetBuild?._id;
 
-  const handleSimulatorVR = async () => {
-    if (!selectedProject?.unityBuildPath) {
-      alert("❌ This simulator doesn't have a Unity build configured for VR.");
+    if (!targetBuild) {
+      alert("❌ This project doesn't have a Unity build configured for VR.");
       return;
     }
 
-    console.log("🚀 Preparing VR Unity build for simulator:", selectedProject.name);
-
-
-    setShowVRGuide(true);
-  };
-
-
-const proceedToVR = async () => {
-  if (!selectedProject?.unityBuildPath) {
-    console.error("❌ No Unity build path found");
-    return;
-  }
-
-  console.log("🎮 Launching Unity VR build for:", selectedProject.name);
-
-  try {
-    setLaunchingVR(true);
-    setShowRedirectOverlay(true);
-    
-    const response = await API.post("/projects/launch-build", {
-      projectId: selectedProject._id,
-      unityBuildPath: selectedProject.unityBuildPath
+    console.log("🚀 Preparing VR Unity build:", {
+      project: project.name,
+      build: targetBuild.name,
+      isMain: targetBuild.isMain,
+      buildId: buildId // Log the specific build ID
     });
 
-    console.log("✅ Backend response:", response.data);
+    try {
+      setLaunchingVRBuilds(prev => ({ ...prev, [buildId]: true }));
 
-    if (response.data.success) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setShowRedirectOverlay(false);
-      
-      
-    } else {
-      setShowRedirectOverlay(false);
-      alert("❌ Failed to launch VR build: " + response.data.error);
+      setPendingVRModel({ project, build: targetBuild });
+      setShowVRGuide(true);
+
+    } finally {
+      // Note: We don't set loading to false here because the VR process continues
+      // through the guide and actual launch. We'll handle the final state in proceedToVR
     }
-  } catch (error) {
-    console.error("❌ Error launching Unity VR build:", error);
-    setShowRedirectOverlay(false);
-    alert("❌ Error: " + error.message);
-  } finally {
-    setLaunchingVR(false);
-    setShowVRGuide(false);
-  }
-};
+  };
+  const proceedToVR = async () => {
+    if (!pendingVRModel) {
+      console.error("❌ No VR model pending");
+      return;
+    }
+
+    const { project, build } = pendingVRModel;
+    const buildId = build._id;
+
+    console.log("🎮 Launching Unity VR build:", {
+      project: project.name,
+      build: build.name,
+      executable: build.executablePath
+    });
+
+    try {
+      setLaunchingVRBuilds(prev => ({ ...prev, [buildId]: true }));
+      setLaunchingVR(true);
+      setShowRedirectOverlay(true);
+
+      const response = await API.post("/projects/launch-build", {
+        projectId: project._id,
+        buildId: buildId // Send specific build ID for VR
+      });
+
+      console.log("✅ Backend response:", response.data);
+
+      if (response.data.success) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setShowRedirectOverlay(false);
+      } else {
+        setShowRedirectOverlay(false);
+        alert("❌ Failed to launch VR build: " + response.data.error);
+      }
+    } catch (error) {
+      console.error("❌ Error launching Unity VR build:", error);
+      setShowRedirectOverlay(false);
+      alert("❌ Error: " + error.message);
+    } finally {
+      setLaunchingVR(false);
+      setLaunchingVRBuilds(prev => ({ ...prev, [buildId]: false }));
+      setShowVRGuide(false);
+      setPendingVRModel(null);
+    }
+  };
 
   const handleVRGuideConfirm = () => {
     // Close the guide and start the VR process
     setShowVRGuide(false);
     proceedToVR();
   };
+
+  // In your VRConnectionGuide usage:
+  {
+    showVRGuide && (
+      <VRConnectionGuide
+        darkMode={darkMode}
+        onClose={handleVRGuideClose}
+        onConfirm={handleVRGuideConfirm}
+        onRedirect={handleVRGuideConfirm}
+        loading={launchingVR}
+      />
+    )
+  }
   const handleRedirectCancel = () => {
     setShowRedirectOverlay(false);
     setLaunchingVR(false);
@@ -810,33 +847,37 @@ const proceedToVR = async () => {
     }
   };
 
-  const launchBuildExecutable = async (project) => {
+  const launchBuildExecutable = async (project, build = null) => {
+    // If no specific build provided, use the main build
+    const targetBuild = build || project.builds?.find(b => b.isMain);
+    const buildId = targetBuild?._id;
+
+    if (!targetBuild) {
+      alert("❌ No build configured for this project");
+      return;
+    }
+
     try {
-      setLaunchingBuild(true);
+      setLaunchingBuilds(prev => ({ ...prev, [buildId]: true }));
 
-      console.log("🚀 Launching build for project:", {
-        id: project._id,
-        name: project.name,
-        category: project.category,
-        unityBuildPath: project.unityBuildPath,
-        hasUnityBuild: !!project.unityBuildPath
+      console.log("🚀 Launching specific build:", {
+        project: project.name,
+        build: targetBuild.name,
+        buildId: buildId, // Use the buildId variable
+        executable: targetBuild.executablePath,
+        isMain: targetBuild.isMain
       });
-
-      // Check if we have the necessary data
-      if (!project.unityBuildPath) {
-        alert("❌ This project doesn't have a Unity build configured");
-        return;
-      }
 
       const response = await API.post("/projects/launch-build", {
         projectId: project._id,
-        unityBuildPath: project.unityBuildPath
+        buildId: buildId // Send specific build ID
       });
 
-      console.log("✅ Backend response:", response.data);
+      console.log("✅ Backend response for build:", targetBuild.name, response.data);
 
       if (response.data.success) {
-
+        // Success feedback - you might want to show a toast notification
+        console.log(`✅ Build "${targetBuild.name}" launched successfully`);
       } else {
         alert("❌ Failed to launch build: " + response.data.error);
       }
@@ -844,19 +885,17 @@ const proceedToVR = async () => {
       console.error("❌ Error launching build:", error);
 
       if (error.response) {
-        console.error("Backend error details:", error.response.data);
-        console.error("Backend error status:", error.response.status);
         alert("❌ Server error: " + (error.response.data.error || error.response.data.message));
       } else if (error.request) {
-        console.error("No response received:", error.request);
         alert("❌ Network error: Could not connect to server.");
       } else {
         alert("❌ Error: " + error.message);
       }
     } finally {
-      setLaunchingBuild(false);
+      setLaunchingBuilds(prev => ({ ...prev, [buildId]: false }));
     }
   };
+
 
   const filteredProjects = useMemo(
     () =>
@@ -941,22 +980,22 @@ const proceedToVR = async () => {
   }, [projects]);
 
 
- useEffect(() => {
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'visible' && showRedirectOverlay) {
-      // User returned to this tab - close the redirect overlay
-      console.log("🔙 User returned to main tab - closing redirect overlay");
-      setShowRedirectOverlay(false);
-      setLaunchingVR(false);
-    }
-  };
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && showRedirectOverlay) {
+        // User returned to this tab - close the redirect overlay
+        console.log("🔙 User returned to main tab - closing redirect overlay");
+        setShowRedirectOverlay(false);
+        setLaunchingVR(false);
+      }
+    };
 
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  
-  return () => {
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-  };
-}, [showRedirectOverlay]);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [showRedirectOverlay]);
 
 
   const fetchNotifications = async () => {
@@ -1354,6 +1393,7 @@ const proceedToVR = async () => {
 
               <div className="relative z-10">
                 {/* Project Header with glassmorphism */}
+                {/* Project Header with glassmorphism */}
                 <div
                   className={`mb-8 p-6 rounded-2xl backdrop-blur-xl ${darkMode
                     ? "bg-white/10 border border-white/20"
@@ -1378,106 +1418,134 @@ const proceedToVR = async () => {
                       >
                         {selectedProject.category}
                       </div>
-
-                      {/* Launch Build Button for Simulators */}
-
-                      {selectedProject.category === "simulators" && selectedProject.unityBuildPath && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => launchBuildExecutable(selectedProject)}
-                            disabled={launchingBuild}
-                            className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 backdrop-blur-xl shadow-lg ${launchingBuild
-                              ? "bg-gray-500/80 cursor-not-allowed"
-                              : darkMode
-                                ? "bg-blue-600/80 hover:bg-blue-700/80 border border-blue-500/30"
-                                : "bg-blue-500/80 hover:bg-blue-600/80 border border-blue-400/30"
-                              } text-white`}
-                          >
-                            {launchingBuild ? (
-                              <>
-                                <Loader className="animate-spin" size={18} />
-                                Launching...
-                              </>
-                            ) : (
-                              <>
-                                <Monitor size={18} />
-                                Launch Build
-                              </>
-                            )}
-                          </button>
-
-                          {/* Add this View in VR button */}
-                          <button
-                            onClick={handleSimulatorVR}
-                            disabled={launchingVR}
-                            className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 backdrop-blur-xl shadow-lg ${launchingVR
-                              ? "bg-gray-500/80 cursor-not-allowed"
-                              : darkMode
-                                ? "bg-green-600/80 hover:bg-green-700/80 border border-green-500/30"
-                                : "bg-green-500/80 hover:bg-green-600/80 border border-green-400/30"
-                              } text-white`}
-                          >
-                            {launchingVR ? (
-                              <>
-                                <Loader className="animate-spin" size={18} />
-                                Launching...
-                              </>
-                            ) : (
-                              <>
-                                <Play size={18} />
-                                View in VR
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
+
+                  {/* Builds Section - Show for ALL categories if builds exist */}
+                  {selectedProject.builds && selectedProject.builds.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-white/20">
+                      <h3 className="text-lg font-semibold mb-3 text-purple-400">Available Builds</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {selectedProject.builds.map((build, index) => (
+                          <div
+                            key={build._id || index}
+                            className={`p-4 rounded-xl backdrop-blur-md border ${darkMode
+                              ? build.isMain
+                                ? "bg-purple-900/30 border-purple-500/40"
+                                : "bg-blue-900/30 border-blue-500/40"
+                              : build.isMain
+                                ? "bg-purple-100/50 border-purple-400/60"
+                                : "bg-blue-100/50 border-blue-400/60"
+                              }`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h4 className="font-semibold text-sm flex items-center gap-2">
+                                  {build.name}
+                                  {build.isMain && (
+                                    <span className={`px-2 py-1 text-xs rounded-full ${darkMode ? 'bg-purple-600' : 'bg-purple-500'} text-white`}>
+                                      Main
+                                    </span>
+                                  )}
+                                </h4>
+                                <p className={`text-xs mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                  {build.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 mt-3">
+                              {/* Launch Build Button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  launchBuildExecutable(selectedProject, build);
+                                }}
+                                disabled={launchingBuilds[build._id]}
+                                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 backdrop-blur-xl ${launchingBuilds[build._id]
+                                  ? "bg-gray-500/80 cursor-not-allowed"
+                                  : darkMode
+                                    ? "bg-blue-600/80 hover:bg-blue-700/80 border border-blue-500/30"
+                                    : "bg-blue-500/80 hover:bg-blue-600/80 border border-blue-400/30"
+                                  } text-white`}
+                              >
+                                {launchingBuilds[build._id] ? (
+                                  <>
+                                    <Loader className="animate-spin" size={14} />
+                                    Launching...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Monitor size={14} />
+                                    Launch
+                                  </>
+                                )}
+                              </button>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleProjectVR(selectedProject, build);
+                                }}
+                                disabled={launchingVRBuilds[build._id]}
+                                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 backdrop-blur-xl ${launchingVRBuilds[build._id]
+                                  ? "bg-gray-500/80 cursor-not-allowed"
+                                  : darkMode
+                                    ? "bg-green-600/80 hover:bg-green-700/80 border border-green-500/30"
+                                    : "bg-green-500/80 hover:bg-green-600/80 border border-green-400/30"
+                                  } text-white`}
+                              >
+                                {launchingVRBuilds[build._id] ? (
+                                  <>
+                                    <Loader className="animate-spin" size={14} />
+                                    Launching...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play size={14} />
+                                    VR
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Build Info */}
+
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Builds Message */}
+                  {(!selectedProject.builds || selectedProject.builds.length === 0) && (
+                    <div className={`mt-4 p-4 rounded-xl text-center ${darkMode ? 'bg-gray-800/30' : 'bg-gray-100/50'}`}>
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        No builds available for this project
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                {/* 3D Models Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {(() => {
-                    if (!selectedProject.modelFileId) return null;
-                    const q = modelSearchTerm.trim().toLowerCase();
-                    const candidates = [
-                      'main model',
-                      selectedProject.modelName || '',
-                      selectedProject.modelFileName || ''
-                    ].map((s) => s.toLowerCase());
-                    const matches = !q || candidates.some((s) => s && s.includes(q));
-                    if (!matches) return null;
-                    return (
-                      <ModelCard
-                        model={selectedProject}
-                        onClick={() => openModelPopup(selectedProject.modelFileId, selectedProject.modelFileName)}
-                        darkMode={darkMode}
-                        isMain={true}
-                      />
-                    );
-                  })()}
 
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  
                   {selectedProject.modelFileId && (
                     <ModelCard
                       model={selectedProject}
-                      onClick={() =>
-                        openModelPopup(
-                          selectedProject.modelFileId,
-                          selectedProject.modelFileName
-                        )
-                      }
+                      onClick={() => openModelPopup(selectedProject.modelFileId, selectedProject.modelFileName)}
                       darkMode={darkMode}
                       isMain={true}
                     />
                   )}
 
+                  {/* Sub Models */}
                   {selectedProject.subModels?.map((subModel, index) => (
                     <ModelCard
                       key={index}
                       model={subModel}
-                      onClick={() =>
-                        openModelPopup(subModel.fileId, subModel.fileName)
-                      }
+                      onClick={() => openModelPopup(subModel.fileId, subModel.fileName)}
                       darkMode={darkMode}
                       isMain={false}
                     />
@@ -1494,7 +1562,7 @@ const proceedToVR = async () => {
                     darkMode={darkMode}
                     onClose={handleVRGuideClose}
                     onConfirm={handleVRGuideConfirm}
-                    onRedirect={handleVRGuideConfirm} // Use the same handler for both buttons
+                    onRedirect={handleVRGuideConfirm} 
                     loading={launchingVR}
                   />
                 )}
