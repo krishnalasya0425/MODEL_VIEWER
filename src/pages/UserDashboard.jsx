@@ -694,34 +694,37 @@ export default function UserDashboard() {
   const [pendingVRModel, setPendingVRModel] = useState(null);
   const [launchingBuilds, setLaunchingBuilds] = useState({});
   const [launchingVRBuilds, setLaunchingVRBuilds] = useState({});
-  const handleProjectVR = async (project, build = null) => {
-    // If no specific build provided, use the main build
-    const targetBuild = build || project.builds?.find(b => b.isMain);
-    const buildId = targetBuild?._id;
+const handleProjectVR = async (project, build = null) => {
+  // If no specific build provided, use the main build
+  const targetBuild = build || project.builds?.find(b => b.isMain);
+  const buildId = targetBuild?._id;
 
-    if (!targetBuild) {
-      alert("❌ This project doesn't have a Unity build configured for VR.");
-      return;
-    }
+  if (!targetBuild) {
+    alert("❌ This project doesn't have a Unity build configured for VR.");
+    return;
+  }
 
-    console.log("🚀 Preparing VR Unity build:", {
-      project: project.name,
-      build: targetBuild.name,
-      isMain: targetBuild.isMain,
-      buildId: buildId // Log the specific build ID
-    });
+  console.log("🚀 Preparing VR Unity build:", {
+    project: project.name,
+    build: targetBuild.name,
+    isMain: targetBuild.isMain,
+    buildId: buildId,
+    executable: targetBuild.executablePath
+  });
 
-    try {
-      setLaunchingVRBuilds(prev => ({ ...prev, [buildId]: true }));
+  try {
+    setLaunchingVRBuilds(prev => ({ ...prev, [buildId]: true }));
+    
+    // Store the project and build info for VR launch
+    setPendingVRModel({ project, build: targetBuild });
+    setShowVRGuide(true);
 
-      setPendingVRModel({ project, build: targetBuild });
-      setShowVRGuide(true);
+  } catch (error) {
+    console.error("❌ Error preparing VR:", error);
+    setLaunchingVRBuilds(prev => ({ ...prev, [buildId]: false }));
+  }
+};
 
-    } finally {
-      // Note: We don't set loading to false here because the VR process continues
-      // through the guide and actual launch. We'll handle the final state in proceedToVR
-    }
-  };
   const proceedToVR = async () => {
     if (!pendingVRModel) {
       console.error("❌ No VR model pending");
@@ -768,6 +771,12 @@ export default function UserDashboard() {
     }
   };
 
+    // Handle VR guide close
+  const handleVRGuideClose = () => {
+    setShowVRGuide(false);
+    setPendingVRModel(null);
+  };
+
   const handleVRGuideConfirm = () => {
     // Close the guide and start the VR process
     setShowVRGuide(false);
@@ -792,11 +801,7 @@ export default function UserDashboard() {
   };
 
 
-  // Handle VR guide close
-  const handleVRGuideClose = () => {
-    setShowVRGuide(false);
-    setPendingVRModel(null);
-  };
+
 
 
   const launchVrBuild = async (project) => {
@@ -1557,6 +1562,8 @@ export default function UserDashboard() {
                     onClose={handleRedirectCancel}
                   />
                 )}
+
+                
                 {showVRGuide && (
                   <VRConnectionGuide
                     darkMode={darkMode}
