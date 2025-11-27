@@ -15,7 +15,7 @@ export default function FBXViewer({ fileUrl, zoom = 1 }) {
 
     const mount = mountRef.current;
 
-    // Scene setup
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf0f0f0);
 
@@ -36,18 +36,18 @@ export default function FBXViewer({ fileUrl, zoom = 1 }) {
     controls.enableDamping = true;
     controlsRef.current = controls;
 
-    // Lighting
+
     const light1 = new THREE.DirectionalLight(0xffffff, 1);
     light1.position.set(1, 1, 1);
     scene.add(light1);
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-    // Group for the model
+ 
     const modelGroup = new THREE.Group();
     scene.add(modelGroup);
     modelGroupRef.current = modelGroup;
 
-    // Loader logic
+
     const ext = fileUrl.split(".").pop().toLowerCase();
 
     const handleLoadedObject = (object) => {
@@ -80,7 +80,7 @@ export default function FBXViewer({ fileUrl, zoom = 1 }) {
       );
     }
 
-    // Animation loop
+
     const animate = () => {
       requestAnimationFrame(animate);
       controls.update();
@@ -88,36 +88,34 @@ export default function FBXViewer({ fileUrl, zoom = 1 }) {
     };
     animate();
 
-    // Cleanup
+
     return () => {
       mount.removeChild(renderer.domElement);
       renderer.dispose();
     };
   }, [fileUrl]);
 
-  // --- ✅ Zoom effect ---
- // --- ✅ Final Smooth Zoom without rotation or drift ---
+
 useEffect(() => {
   const controls = controlsRef.current;
   const camera = cameraRef.current;
   if (!controls || !camera) return;
 
-  // Calculate forward vector (camera -> controls.target)
   const forward = new THREE.Vector3();
   forward.subVectors(controls.target, camera.position).normalize();
 
-  // Current distance from camera to target
+  
   const currentDistance = camera.position.distanceTo(controls.target);
 
-  // Compute new distance based on zoom factor
+  
   const targetDistance = THREE.MathUtils.clamp(currentDistance / zoom, 20, 1000);
 
-  // Compute start and end positions
+  
   const startPos = camera.position.clone();
   const endPos = new THREE.Vector3().copy(controls.target)
     .add(forward.clone().multiplyScalar(-targetDistance));
 
-  // Smooth animation (ease-out)
+  
   const duration = 300;
   const startTime = performance.now();
 

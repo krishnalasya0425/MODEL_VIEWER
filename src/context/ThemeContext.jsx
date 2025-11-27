@@ -1,4 +1,4 @@
-// src/context/ThemeContext.jsx
+
 import { createContext, useContext, useState, useEffect } from "react";
 
 const ThemeContext = createContext();
@@ -8,13 +8,13 @@ export const ThemeProvider = ({ children }) => {
     return localStorage.getItem("theme") === "dark";
   });
 
-  // ✅ Automatically apply and persist theme
+ 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
     localStorage.setItem("theme", darkMode ? "dark" : "light");
   }, [darkMode]);
 
-  // ✅ Add this helper
+
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
   return (

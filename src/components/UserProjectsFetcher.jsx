@@ -1,4 +1,4 @@
-// src/components/UserProjectsFetcher.jsx
+
 import { useEffect, useState } from "react";
 import API from "../utils/api";
 

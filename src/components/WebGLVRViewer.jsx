@@ -9,8 +9,7 @@ const WebGLVRViewer = ({ webglUrl, onExit }) => {
     const injectVRControls = () => {
       const iframe = iframeRef.current;
       if (iframe && iframe.contentWindow) {
-        // This would need to be customized based on your WebGL build
-        // You might need to modify the Unity WebGL build to support VR controls
+
         const vrScript = `
           // VR control injection script
           if (typeof Unity !== 'undefined') {

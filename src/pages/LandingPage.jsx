@@ -12,14 +12,14 @@ import {
   Mail,FileText,
 } from "lucide-react";
 import { Link } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext'; // ✅ use global theme
+import { useTheme } from '../context/ThemeContext';
 
 
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpPopup, setShowHelpPopup] = useState(false);
-  const { darkMode, toggleDarkMode } = useTheme(); // ✅ global theme context
+  const { darkMode, toggleDarkMode } = useTheme(); 
   const [helpForm, setHelpForm] = useState({
     from: "",
     subject: "",
@@ -459,7 +459,7 @@ export default function LandingPage() {
           </label>
         </div>
 
-        {/* Subject Field */}
+
         <div className="relative">
           <input
             type="text"

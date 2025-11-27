@@ -200,21 +200,19 @@ const handleAddProject = async (e) => {
     if (mainBuildZip && mainBuildZip.size > LARGE_FILE_THRESHOLD) {
       console.log("📦 Uploading main build as chunks...");
       const chunkInfo = await uploadFileInChunks(mainBuildZip, "mainBuildZip", (progress) => {
-        // Main build takes 40% of total progress
         const newProgress = progress * 0.4;
         setUploadProgress(newProgress);
         totalProgress = newProgress;
       });
       chunkedFiles.push(chunkInfo);
     } else if (mainBuildZip) {
-      // Small main build file - mark as 40% complete immediately
       totalProgress += 40;
       setUploadProgress(totalProgress);
     }
 
     // Phase 2: Upload large sub-builds as chunks (30% of total progress)
     const subBuildsToUpload = subBuilds.filter(build => build.file && build.file.size > LARGE_FILE_THRESHOLD);
-    
+
     if (subBuildsToUpload.length > 0) {
       for (let i = 0; i < subBuildsToUpload.length; i++) {
         console.log(`📦 Uploading sub-build ${i} as chunks...`);
@@ -222,7 +220,6 @@ const handleAddProject = async (e) => {
           subBuildsToUpload[i].file,
           `subBuildZips_${i}`,
           (progress) => {
-            // Each sub-build gets equal share of the 30%
             const subBuildProgress = (progress * 0.3) / subBuildsToUpload.length;
             setUploadProgress(totalProgress + subBuildProgress);
           }
@@ -230,7 +227,6 @@ const handleAddProject = async (e) => {
         chunkedFiles.push(chunkInfo);
       }
     } else if (subBuilds.some(build => build.file)) {
-      // Small sub-build files - mark as 30% complete immediately
       totalProgress += 30;
       setUploadProgress(totalProgress);
     }
@@ -262,24 +258,24 @@ const handleAddProject = async (e) => {
       console.log("📤 Sending chunked files:", chunkedFiles);
     }
 
-    // Submodels
-    const subModelsData = subModels
-      .filter((s) => (s.name || "").trim() !== "")
-      .map((s) => ({
-        name: s.name,
-        description: s.description,
+    // Submodels - only include valid ones (OPTIONAL)
+    const validSubModels = subModels.filter((s) => (s.name || "").trim() !== "" && s.file);
+    if (validSubModels.length > 0) {
+      const subModelsData = validSubModels.map((s, index) => ({
+        name: s.name.trim(),
+        description: s.description || "",
+        fileIndex: index 
       }));
-    formData.append("subModels", JSON.stringify(subModelsData));
+      formData.append("subModels", JSON.stringify(subModelsData));
+    }
 
-    // 🟢 ADD FILES - Handle both chunked and direct uploads
-
-    // Main build zip (if not chunked or small file)
+    // Main build zip (if not chunked or small file) - REQUIRED
     if (mainBuildZip && mainBuildZip.size <= LARGE_FILE_THRESHOLD) {
       formData.append("mainBuildZip", mainBuildZip);
       console.log("📤 Adding main build directly:", mainBuildZip.name);
     }
 
-    // Sub-build zips (if not chunked or small files)
+    // Sub-build zips (if not chunked or small files) - OPTIONAL
     subBuilds.forEach((build, index) => {
       if (build.file && build.file.size <= LARGE_FILE_THRESHOLD) {
         formData.append("subBuildZips", build.file);
@@ -287,14 +283,17 @@ const handleAddProject = async (e) => {
       }
     });
 
-    // Model files
+    // 🟢 FIX: Model file is NOW OPTIONAL - don't throw error if missing
     if (modelFile) {
       formData.append("modelFile", modelFile);
       console.log("📤 Adding model file:", modelFile.name);
+    } else {
+      console.log("ℹ️ No model file provided - continuing without model");
+      // Don't throw error - models are optional now
     }
 
-    // Submodel files
-    subModels.forEach((s, index) => {
+    // Submodel files - only for valid submodels (OPTIONAL)
+    validSubModels.forEach((s, index) => {
       if (s.file) {
         formData.append("subModelFiles", s.file);
         console.log(`📤 Adding submodel file ${index}:`, s.file.name);
@@ -303,6 +302,16 @@ const handleAddProject = async (e) => {
 
     const token = localStorage.getItem("token");
     console.log("🚀 Sending project creation request...");
+
+    // Debug: Log all form data entries
+    console.log("📋 FormData contents:");
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: File - ${value.name} (${value.size} bytes)`);
+      } else {
+        console.log(`  ${key}: ${value}`);
+      }
+    }
 
     // If no chunk uploads happened, set base progress to 70%
     if (totalProgress < 70) {
@@ -346,7 +355,15 @@ const handleAddProject = async (e) => {
 
     if (error.response) {
       console.error("Server response error:", error.response.data);
-      toast.error(`Error: ${error.response.data.error || error.response.statusText}`);
+      const errorMessage = error.response.data.error || error.response.statusText;
+      toast.error(`Error: ${errorMessage}`);
+      
+      // Log detailed error information for debugging
+      console.error("Detailed error info:", {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers
+      });
     } else if (error.request) {
       console.error("No response received:", error.request);
       toast.error("Network error: No response from server");
@@ -361,53 +378,53 @@ const handleAddProject = async (e) => {
 
 
   // In your AdminDashboard.jsx
-const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
-  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-  const uploadId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
+    const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  console.log(`📦 Uploading ${file.name} in ${totalChunks} chunks`);
+    console.log(`📦 Uploading ${file.name} in ${totalChunks} chunks`);
 
-  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-    const start = chunkIndex * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, file.size);
-    const chunk = file.slice(start, end);
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      const start = chunkIndex * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunk = file.slice(start, end);
 
-    const chunkFormData = new FormData();
-    chunkFormData.append("chunk", chunk);
-    chunkFormData.append("chunkIndex", chunkIndex);
-    chunkFormData.append("totalChunks", totalChunks);
-    chunkFormData.append("fileKey", fileKey);
-    chunkFormData.append("originalName", file.name);
-    chunkFormData.append("fileSize", file.size);
-    chunkFormData.append("uploadId", uploadId);
+      const chunkFormData = new FormData();
+      chunkFormData.append("chunk", chunk);
+      chunkFormData.append("chunkIndex", chunkIndex);
+      chunkFormData.append("totalChunks", totalChunks);
+      chunkFormData.append("fileKey", fileKey);
+      chunkFormData.append("originalName", file.name);
+      chunkFormData.append("fileSize", file.size);
+      chunkFormData.append("uploadId", uploadId);
 
-    try {
-      await API.post("/upload/chunk", chunkFormData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      try {
+        await API.post("/upload/chunk", chunkFormData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
 
-      // Update progress for this file
-      const chunkProgress = ((chunkIndex + 1) / totalChunks) * 100;
-      if (onProgress && typeof onProgress === 'function') {
-        onProgress(chunkProgress);
+        // Update progress for this file
+        const chunkProgress = ((chunkIndex + 1) / totalChunks) * 100;
+        if (onProgress && typeof onProgress === 'function') {
+          onProgress(chunkProgress);
+        }
+
+        console.log(`✅ Uploaded chunk ${chunkIndex + 1}/${totalChunks} for ${file.name}`);
+      } catch (error) {
+        console.error(`❌ Failed to upload chunk ${chunkIndex + 1}:`, error);
+        throw new Error(`Chunk upload failed: ${error.message}`);
       }
-
-      console.log(`✅ Uploaded chunk ${chunkIndex + 1}/${totalChunks} for ${file.name}`);
-    } catch (error) {
-      console.error(`❌ Failed to upload chunk ${chunkIndex + 1}:`, error);
-      throw new Error(`Chunk upload failed: ${error.message}`);
     }
-  }
 
-  return {
-    uploadId,
-    fileKey,
-    originalName: file.name
+    return {
+      uploadId,
+      fileKey,
+      originalName: file.name
+    };
   };
-};
   // Add sub-build
   const addSubBuild = () => {
     setSubBuilds([...subBuilds, {
@@ -671,7 +688,7 @@ const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
                     <tr>
                       <th className="px-4 py-2">S.No</th>
                       <th className="px-4 py-2">Project Name</th>
-                      <th className="px-4 py-2">Assigned Users</th>
+                      {/* <th className="px-4 py-2">Assigned Users</th> */}
                       <th className="px-4 py-2 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -686,11 +703,11 @@ const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
                       >
                         <td className="px-4 py-2">{index + 1}</td>
                         <td className="px-4 py-2">{project.name}</td>
-                        <td className="px-4 py-2">
+                        {/* <td className="px-4 py-2">
                           {project.assignedTo?.length > 0
                             ? project.assignedTo.map((u) => u.email).join(", ")
                             : "Not assigned"}
-                        </td>
+                        </td> */}
                         <td className="px-4 py-2 text-right flex gap-3 justify-end">
                           <button
                             onClick={() => handleShowInfo(project._id)}
@@ -739,7 +756,7 @@ const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
                     <tr>
                       <th className="px-4 py-2">S.No</th>
                       <th className="px-4 py-2">Email</th>
-                      <th className="px-4 py-2">Assigned Project</th>
+                      {/* <th className="px-4 py-2">Assigned Project</th> */}
                     </tr>
                   </thead>
                   <tbody>
@@ -753,9 +770,9 @@ const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
                       >
                         <td className="px-4 py-2">{index + 1}</td>
                         <td className="px-4 py-2">{user.email}</td>
-                        <td className="px-4 py-2">
+                        {/* <td className="px-4 py-2">
                           <UserProjectsFetcher userId={user._id} />
-                        </td>
+                        </td> */}
                       </tr>
                     ))}
                   </tbody>
@@ -1133,7 +1150,7 @@ const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
                 className={`p-2 rounded border ${darkMode ? "bg-gray-800 text-white border-gray-600"
                   : "bg-gray-100 text-gray-900 border-gray-300"
                   }`}
-                required
+               
               />
 
               <label className="text-sm font-semibold text-indigo-400">
@@ -1143,7 +1160,7 @@ const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
                 type="file"
                 accept=".fbx,.glb,.gltf"
                 onChange={(e) => setModelFile(e.target.files[0])}
-                required
+               
                 className="text-gray-300"
               />
 
@@ -1245,12 +1262,12 @@ const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
             <p><strong>Description:</strong> {selectedProject.description || "N/A"}</p>
             <p><strong>Model:</strong> {selectedProject.modelName}</p>
 
-            <p className="mt-2">
+            {/* <p className="mt-2">
               <strong>Assigned Users:</strong>{" "}
               {selectedProject.assignedTo?.length
                 ? selectedProject.assignedTo.map((u) => u.email).join(", ")
                 : "None"}
-            </p>
+            </p> */}
 
             <div className="mt-2">
               <strong>Submodels:</strong>
@@ -1549,35 +1566,35 @@ const uploadFileInChunks = async (file, fileKey, onProgress = null) => {
       )}
 
       {/* Upload Progress Modal */}
-{isUploading && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className={`p-6 rounded-lg w-80 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
-      <h3 className="text-lg font-semibold mb-4 text-center">Creating Project...</h3>
-      
-      {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 mb-4">
-        <div 
-          className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
-          style={{ width: `${uploadProgress}%` }}
-        ></div>
-      </div>
-      
-      {/* Progress Text */}
-      <div className="flex justify-between text-sm mb-2">
-        <span>Progress:</span>
-        <span className="font-bold">{Math.round(uploadProgress)}%</span>
-      </div>
-      
-      {/* Status Messages */}
-      <div className="text-center text-sm">
-        {uploadProgress < 40 && <span className="text-yellow-500">📦 Uploading build files...</span>}
-        {uploadProgress >= 40 && uploadProgress < 70 && <span className="text-blue-500">🔄 Processing chunks...</span>}
-        {uploadProgress >= 70 && uploadProgress < 100 && <span className="text-purple-500">🚀 Creating project...</span>}
-        {uploadProgress === 100 && <span className="text-green-500">✅ Complete! Closing...</span>}
-      </div>
-    </div>
-  </div>
-)}
+      {isUploading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`p-6 rounded-lg w-80 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>
+            <h3 className="text-lg font-semibold mb-4 text-center">Creating Project...</h3>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 mb-4">
+              <div
+                className="bg-indigo-600 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+            </div>
+
+            {/* Progress Text */}
+            <div className="flex justify-between text-sm mb-2">
+              <span>Progress:</span>
+              <span className="font-bold">{Math.round(uploadProgress)}%</span>
+            </div>
+
+            {/* Status Messages */}
+            <div className="text-center text-sm">
+              {uploadProgress < 40 && <span className="text-yellow-500">📦 Uploading build files...</span>}
+              {uploadProgress >= 40 && uploadProgress < 70 && <span className="text-blue-500">🔄 Processing chunks...</span>}
+              {uploadProgress >= 70 && uploadProgress < 100 && <span className="text-purple-500">🚀 Creating project...</span>}
+              {uploadProgress === 100 && <span className="text-green-500">✅ Complete! Closing...</span>}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

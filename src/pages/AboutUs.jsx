@@ -22,7 +22,7 @@ export default function AboutUs() {
 
   return (
     <div className={`${darkMode ? "bg-gray-950" : "bg-white"} min-h-screen transition-colors duration-500`}>
-      {/* Header (same as LandingPage) */}
+     
       <header className="absolute inset-x-0 top-0 z-50 supports-[backdrop-filter]:bg-white/20 dark:supports-[backdrop-filter]:bg-transparent backdrop-blur">
         <nav aria-label="Global" className="flex items-center justify-between p-6 lg:px-12">
           <div className="flex lg:flex-1 items-center gap-2">
@@ -36,7 +36,7 @@ export default function AboutUs() {
             </a>
           </div>
 
-          {/* Mobile Buttons */}
+      
           <div className="flex items-center gap-4 lg:hidden">
             <button
               type="button"
@@ -54,7 +54,7 @@ export default function AboutUs() {
             </button>
           </div>
 
-          {/* Desktop Nav */}
+         
           <div className="hidden lg:flex lg:gap-x-10">
             {navItems.map((item) => (
               <a
@@ -83,7 +83,7 @@ export default function AboutUs() {
           </div>
         </nav>
 
-        {/* Mobile Menu */}
+      
         <Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen} className="lg:hidden">
           <div className="fixed inset-0 z-50" />
           <DialogPanel
@@ -137,7 +137,7 @@ export default function AboutUs() {
         </Dialog>
       </header>
 
-      {/* Hero Section for About Us */}
+    
       <section
         className="min-h-screen flex items-center text-center bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-800 dark:text-white"
       >
@@ -158,7 +158,7 @@ export default function AboutUs() {
         </div>
       </section>
 
-      {/* Footer (simple) */}
+     
       <footer className={`${darkMode ? 'bg-gray-950' : 'bg-white'} border-t border-gray-200 dark:border-gray-800`}>
         <div className="mx-auto max-w-7xl px-6 lg:px-12 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-500 dark:text-gray-400">© 2025 EdgeVR. All rights reserved.</p>

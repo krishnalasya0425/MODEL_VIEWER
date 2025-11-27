@@ -4,8 +4,8 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { XR, createXRStore } from "@react-three/xr";
 import { Environment } from "@react-three/drei";
 import * as THREE from "three";
-import VRZoomControlsWrapper from "./VRZoomControlsWrapper"; // your existing VRZoomControlsWrapper
-import Model from "./Model"; // your existing Model component
+import VRZoomControlsWrapper from "./VRZoomControlsWrapper"; 
+import Model from "./Model"; 
 
 const store = createXRStore();
 
@@ -17,7 +17,7 @@ export default function VRInstructionModal({ modelUrl, onClose, darkMode }) {
 
   const canvasRef = useRef();
 
-  // Check VR support & PC compatibility
+
   useEffect(() => {
     const checkVRStatus = async () => {
       const canvas = document.createElement("canvas");
